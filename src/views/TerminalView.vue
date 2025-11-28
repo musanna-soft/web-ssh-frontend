@@ -92,8 +92,10 @@ const connect = () => {
         return;
     }
 
-    const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
-    const wsUrl = `${protocol}://localhost:8080/ws/ssh?server_id=${serverId}&token=${token}`;
+    const backendUrl = import.meta.env.VITE_API_BASE_URL;
+    const protocol = backendUrl.startsWith('https') ? 'wss' : 'ws';
+    const backendHost = backendUrl.replace(/^https?:\/\//, '');
+    const wsUrl = `${protocol}://${backendHost}/ws/ssh?server_id=${serverId}&token=${token}`;
 
     socket = new WebSocket(wsUrl);
 

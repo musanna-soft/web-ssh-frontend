@@ -436,7 +436,7 @@ const handleDownloadFile = (data) => {
     // Implement download logic (reuse from FileManager)
     const { serverId, name, path, cb } = data;
     const fullPath = (path === '/' ? '' : path) + '/' + name;
-    const url = `http://localhost:8080/api/sftp/download?server_id=${serverId}&path=${encodeURIComponent(fullPath)}`;
+    const url = `${import.meta.env.VITE_API_BASE_URL}/api/sftp/download?server_id=${serverId}&path=${encodeURIComponent(fullPath)}`;
 
     api.get(url, { responseType: 'blob' })
         .then(response => {
@@ -457,7 +457,7 @@ const handleDownloadFile = (data) => {
 const handleDownloadZip = (data) => {
     const { serverId, name, path, cb } = data;
     const fullPath = (path === '/' ? '' : path) + '/' + name;
-    const url = `http://localhost:8080/api/sftp/zip?server_id=${serverId}&path=${encodeURIComponent(fullPath)}`;
+    const url = `${import.meta.env.VITE_API_BASE_URL}/api/sftp/zip?server_id=${serverId}&path=${encodeURIComponent(fullPath)}`;
 
     api.get(url, { responseType: 'blob' })
         .then(response => {

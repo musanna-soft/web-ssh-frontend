@@ -86,8 +86,10 @@ let socket = null;
 
 const connectWebSocket = () => {
     const token = authStore.token;
-    const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
-    const wsUrl = `${protocol}://localhost:8080/ws/sftp?server_id=${props.serverId}&token=${token}`;
+    const backendUrl = import.meta.env.VITE_API_BASE_URL;
+    const protocol = backendUrl.startsWith('https') ? 'wss' : 'ws';
+    const backendHost = backendUrl.replace(/^https?:\/\//, '');
+    const wsUrl = `${protocol}://${backendHost}/ws/sftp?server_id=${props.serverId}&token=${token}`;
 
     socket = new WebSocket(wsUrl);
 

@@ -116,7 +116,7 @@ const openFile = async (name, dirPath) => {
     } else if (imgExts.includes(ext)) {
         // Open Image Viewer
         // We can use the download endpoint to fetch the image blob
-        const url = `http://localhost:8080/api/sftp/download?server_id=${serverId}&path=${encodeURIComponent(path)}`;
+        const url = `${import.meta.env.VITE_API_BASE_URL}/api/sftp/download?server_id=${serverId}&path=${encodeURIComponent(path)}`;
         api.get(url, { responseType: 'blob' })
             .then(response => {
                 imageSrc.value = window.URL.createObjectURL(new Blob([response.data]));
@@ -159,7 +159,7 @@ const saveFile = async () => {
 
 const downloadFile = (name, dirPath, callback) => {
     const path = (dirPath === '/' ? '' : dirPath) + '/' + name;
-    const url = `http://localhost:8080/api/sftp/download?server_id=${serverId}&path=${encodeURIComponent(path)}`;
+    const url = `${import.meta.env.VITE_API_BASE_URL}/api/sftp/download?server_id=${serverId}&path=${encodeURIComponent(path)}`;
 
     api.get(url, { responseType: 'blob' })
         .then(response => {
@@ -179,7 +179,7 @@ const downloadFile = (name, dirPath, callback) => {
 
 const downloadZip = (name, dirPath, callback) => {
     const path = (dirPath === '/' ? '' : dirPath) + '/' + name;
-    const url = `http://localhost:8080/api/sftp/zip?server_id=${serverId}&path=${encodeURIComponent(path)}`;
+    const url = `${import.meta.env.VITE_API_BASE_URL}/api/sftp/zip?server_id=${serverId}&path=${encodeURIComponent(path)}`;
 
     api.get(url, { responseType: 'blob' })
         .then(response => {
