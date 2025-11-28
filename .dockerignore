@@ -1,0 +1,33 @@
+# Dependencies
+node_modules
+npm-debug.log*
+
+# Build output
+dist
+build
+temp
+tmp
+
+# Environment files
+.env
+.env.*
+!.env.production
+
+
+# Git/IDE files
+.git
+.gitignore
+.editorconfig
+.vscode
+*.log
+
+# Docker files
+docker-compose.test.yml
+
+# MacOS files
+.DS_Store
+
+# Others
+Thumbs.db
+README.md
+~*
