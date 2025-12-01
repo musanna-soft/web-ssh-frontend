@@ -13,6 +13,9 @@ tmp
 .env.*
 !.env.production
 
+# CI/CD files
+.github
+.gitlab-ci.yml
 
 # Git/IDE files
 .git
@@ -21,8 +24,9 @@ tmp
 .vscode
 *.log
 
-# Docker files
-docker-compose.test.yml
+# Docker Compose
+docker-compose.yml
+docker-compose.*.yml
 
 # MacOS files
 .DS_Store
