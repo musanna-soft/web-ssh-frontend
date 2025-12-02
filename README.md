@@ -2,6 +2,18 @@
 
 This is the frontend component of the Web SSH application, built with Vue 3 and Vite. It provides a web interface for connecting to SSH servers.
 
+## Features
+
+- **Terminal Copy/Paste**:
+  - **Auto-copy on selection**: Selected text is automatically copied to clipboard
+  - **Ctrl+Shift+C**: Manual copy with visual feedback (prevents dev tools from opening)
+  - **Ctrl+Shift+V**: Paste from clipboard (native browser functionality)
+- **WebSocket Keepalive**: Client-side ping mechanism to maintain connection during idle periods
+- **Auto-reconnection**: Automatic reconnection with exponential backoff (up to 5 attempts)
+- **Google OAuth Integration**: Secure user authentication
+- **Multi-server Management**: Connect to multiple SSH servers simultaneously
+- **File Manager**: Browse and manage files via SFTP
+
 ## 1. Configuration (.env)
 
 Before running the application, you need to configure the environment variables.

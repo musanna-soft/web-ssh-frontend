@@ -40,6 +40,10 @@ const statusMessage = ref('');
 let term = null;
 let socket = null;
 let fitAddon = null;
+let pingInterval = null;
+let reconnectTimeout = null;
+let reconnectAttempts = 0;
+const maxReconnectAttempts = 5;
 
 const goBack = () => {
     router.push('/');
@@ -61,11 +65,22 @@ const initTerminal = () => {
     term.open(terminalContainer.value);
     fitAddon.fit();
 
+    // Auto-copy on selection
+    term.onSelectionChange(() => {
+        const selection = term.getSelection();
+        if (selection) {
+            copyToClipboard(selection);
+        }
+    });
+
     term.onData((data) => {
         if (socket && socket.readyState === WebSocket.OPEN) {
             socket.send(JSON.stringify({ type: 'data', content: data }));
         }
     });
+
+    // Handle Ctrl+Shift+C for copy and Ctrl+Shift+V for paste
+    terminalContainer.value.addEventListener('keydown', handleKeyDown);
 
     window.addEventListener('resize', handleResize);
 };
@@ -81,6 +96,75 @@ const handleResize = () => {
             }));
         }
     }
+};
+
+const handleKeyDown = (event) => {
+    // Ctrl+Shift+C - Copy selected text
+    if (event.ctrlKey && event.shiftKey && event.key === 'C') {
+        event.preventDefault();
+        event.stopPropagation();
+        const selection = term.getSelection();
+        if (selection) {
+            copyToClipboard(selection);
+            // Visual feedback
+            term.write('\r\n\x1b[32m[Copied to clipboard]\x1b[0m\r\n');
+        }
+        return false;
+    }
+};
+
+const copyToClipboard = async (text) => {
+    try {
+        await navigator.clipboard.writeText(text);
+    } catch (err) {
+        console.error('Failed to copy text:', err);
+    }
+};
+
+const startPingInterval = () => {
+    // Clear any existing interval
+    if (pingInterval) {
+        clearInterval(pingInterval);
+    }
+
+    // Send ping every 30 seconds to keep connection alive
+    pingInterval = setInterval(() => {
+        if (socket && socket.readyState === WebSocket.OPEN) {
+            socket.send(JSON.stringify({ type: 'ping' }));
+        }
+    }, 30000); // 30 seconds
+};
+
+const stopPingInterval = () => {
+    if (pingInterval) {
+        clearInterval(pingInterval);
+        pingInterval = null;
+    }
+};
+
+const cleanup = () => {
+    stopPingInterval();
+    if (reconnectTimeout) {
+        clearTimeout(reconnectTimeout);
+        reconnectTimeout = null;
+    }
+};
+
+const attemptReconnect = () => {
+    if (reconnectAttempts >= maxReconnectAttempts) {
+        term.write('\r\n\x1b[31mMax reconnection attempts reached. Please refresh the page.\x1b[0m\r\n');
+        statusMessage.value = 'Connection lost. Please refresh the page.';
+        return;
+    }
+
+    reconnectAttempts++;
+    const delay = Math.min(1000 * Math.pow(2, reconnectAttempts - 1), 10000); // Exponential backoff, max 10s
+
+    term.write(`\r\n\x1b[33mReconnecting in ${delay / 1000}s... (Attempt ${reconnectAttempts}/${maxReconnectAttempts})\x1b[0m\r\n`);
+
+    reconnectTimeout = setTimeout(() => {
+        connect();
+    }, delay);
 };
 
 const connect = () => {
@@ -101,8 +185,10 @@ const connect = () => {
 
     socket.onopen = () => {
         isConnected.value = true;
+        reconnectAttempts = 0; // Reset reconnect attempts on successful connection
         term.write('\r\n*** Connected to SSH Server ***\r\n');
         handleResize(); // Send initial size
+        startPingInterval(); // Start keepalive pings
     };
 
     socket.onmessage = (event) => {
@@ -113,25 +199,43 @@ const connect = () => {
             };
             reader.readAsArrayBuffer(event.data);
         } else {
-            term.write(event.data);
+            // Check if it's a JSON message (pong response)
+            try {
+                const msg = JSON.parse(event.data);
+                if (msg.type === 'pong') {
+                    // Pong received, connection is alive
+                    return;
+                }
+            } catch (e) {
+                // Not JSON, treat as terminal output
+                term.write(event.data);
+            }
         }
     };
 
-    socket.onclose = () => {
+    socket.onclose = (event) => {
         isConnected.value = false;
-        term.write('\r\n\x1b[31mConnection closed.\x1b[0m\r\n');
+        stopPingInterval();
 
-        let seconds = 3;
-        statusMessage.value = `Connection closed. Redirecting in ${seconds}s...`;
+        // Check if this was an unexpected close
+        if (event.code !== 1000) { // 1000 = normal closure
+            term.write('\r\n\x1b[33mConnection lost. Attempting to reconnect...\x1b[0m\r\n');
+            attemptReconnect();
+        } else {
+            term.write('\r\n\x1b[31mConnection closed.\x1b[0m\r\n');
 
-        const interval = setInterval(() => {
-            seconds--;
+            let seconds = 3;
             statusMessage.value = `Connection closed. Redirecting in ${seconds}s...`;
-            if (seconds <= 0) {
-                clearInterval(interval);
-                router.push('/');
-            }
-        }, 1000);
+
+            const interval = setInterval(() => {
+                seconds--;
+                statusMessage.value = `Connection closed. Redirecting in ${seconds}s...`;
+                if (seconds <= 0) {
+                    clearInterval(interval);
+                    router.push('/');
+                }
+            }, 1000);
+        }
     };
 
     socket.onerror = (error) => {
@@ -146,8 +250,12 @@ onMounted(() => {
 });
 
 onBeforeUnmount(() => {
+    cleanup();
     if (socket) {
         socket.close();
+    }
+    if (terminalContainer.value) {
+        terminalContainer.value.removeEventListener('keydown', handleKeyDown);
     }
     if (term) {
         term.dispose();
