@@ -44,6 +44,7 @@ let pingInterval = null;
 let reconnectTimeout = null;
 let reconnectAttempts = 0;
 const maxReconnectAttempts = 5;
+let isUnmounting = false; // Track if component is being unmounted
 
 const goBack = () => {
     router.push('/');
@@ -217,6 +218,11 @@ const connect = () => {
         isConnected.value = false;
         stopPingInterval();
 
+        // Don't reconnect if component is unmounting
+        if (isUnmounting) {
+            return;
+        }
+
         // Check if this was an unexpected close
         if (event.code !== 1000) { // 1000 = normal closure
             term.write('\r\n\x1b[33mConnection lost. Attempting to reconnect...\x1b[0m\r\n');
@@ -250,9 +256,10 @@ onMounted(() => {
 });
 
 onBeforeUnmount(() => {
+    isUnmounting = true; // Set flag before cleanup
     cleanup();
     if (socket) {
-        socket.close();
+        socket.close(1000, 'Component unmounting'); // Normal closure
     }
     if (terminalContainer.value) {
         terminalContainer.value.removeEventListener('keydown', handleKeyDown);

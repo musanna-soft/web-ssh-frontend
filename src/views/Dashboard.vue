@@ -95,7 +95,7 @@
                         <PanelContainer :panel="panel" @close="removePanel" @open-file="handleOpenFile"
                             @download-file="handleDownloadFile" @download-zip="handleDownloadZip"
                             @drop-file="handleCrossPaneDrop" class="panel-wrapper"
-                            :style="{ flex: `0 0 ${panelSizes[index]}%` }" />
+                            :style="{ flex: `0 0 ${panelSizes[panel.id] || 50}%` }" />
                         <div v-if="index < panelStore.panels.length - 1" class="panel-resizer"
                             @mousedown="startResize(index, $event)"></div>
                     </template>
@@ -159,7 +159,7 @@ const transferData = ref(null);
 
 // Panel Resizing State
 const panelsContainer = ref(null);
-const panelSizes = ref([]);
+const panelSizes = ref({}); // Changed to object: { panelId: width% }
 const isResizing = ref(false);
 const currentResizeIndex = ref(-1);
 
@@ -182,28 +182,33 @@ const handleResize = (event) => {
     // Convert mouse position to percentage
     const mousePercent = (mouseX / containerWidth) * 100;
 
+    const panels = panelStore.panels;
+    const currentPanel = panels[currentResizeIndex.value];
+    const nextPanel = panels[currentResizeIndex.value + 1];
+
+    if (!currentPanel || !nextPanel) return;
+
     // Calculate cumulative width of panels BEFORE the one being resized
     let previousWidth = 0;
     for (let i = 0; i < currentResizeIndex.value; i++) {
-        previousWidth += panelSizes.value[i];
+        previousWidth += panelSizes.value[panels[i].id] || 0;
     }
 
-    // New width for panel[index]
+    // New width for current panel
     let newWidth = mousePercent - previousWidth;
 
     // Min width constraint (e.g., 10%)
     if (newWidth < 10) newWidth = 10;
 
-    // The next panel (index+1) must also have min width.
-    const nextPanelIndex = currentResizeIndex.value + 1;
-    const combinedWidth = panelSizes.value[currentResizeIndex.value] + panelSizes.value[nextPanelIndex];
+    // The next panel must also have min width
+    const combinedWidth = (panelSizes.value[currentPanel.id] || 0) + (panelSizes.value[nextPanel.id] || 0);
 
     if (newWidth > combinedWidth - 10) newWidth = combinedWidth - 10;
 
     const newNextWidth = combinedWidth - newWidth;
 
-    panelSizes.value[currentResizeIndex.value] = newWidth;
-    panelSizes.value[nextPanelIndex] = newNextWidth;
+    panelSizes.value[currentPanel.id] = newWidth;
+    panelSizes.value[nextPanel.id] = newNextWidth;
 };
 
 const stopResize = () => {
@@ -256,14 +261,27 @@ watch(() => panelStore.panels, (newPanels, oldPanels) => {
     }
 
     if (newPanels.length === 0) {
-        panelSizes.value = [];
+        panelSizes.value = {};
         return;
     }
-    // If length changed, reset to equal distribution
-    if (panelSizes.value.length !== newPanels.length) {
-        const width = 100 / newPanels.length;
-        panelSizes.value = newPanels.map(() => width);
+
+    // Initialize sizes for new panels
+    const width = 100 / newPanels.length;
+    const newSizes = {};
+    newPanels.forEach(panel => {
+        // Keep existing size if panel already exists, otherwise set equal width
+        newSizes[panel.id] = panelSizes.value[panel.id] || width;
+    });
+
+    // Normalize to ensure total is 100%
+    const total = Object.values(newSizes).reduce((sum, val) => sum + val, 0);
+    if (total > 0) {
+        Object.keys(newSizes).forEach(id => {
+            newSizes[id] = (newSizes[id] / total) * 100;
+        });
     }
+
+    panelSizes.value = newSizes;
 }, { deep: true, immediate: true });
 
 const filteredServers = computed(() => {
