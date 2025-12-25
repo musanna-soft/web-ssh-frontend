@@ -32,7 +32,7 @@ const props = defineProps({
 
 const emit = defineEmits(['close', 'open-file', 'download-file', 'download-zip', 'drop-file']);
 
-const handleOpenFile = (name, path) => emit('open-file', { ...props.panel, name, path });
+const handleOpenFile = (name, path, size) => emit('open-file', { ...props.panel, name, path, size });
 const handleDownloadFile = (name, path, cb) => emit('download-file', { ...props.panel, name, path, cb });
 const handleDownloadZip = (name, path, cb) => emit('download-zip', { ...props.panel, name, path, cb });
 const handleDropFile = (data) => emit('drop-file', { ...data, targetPanelId: props.panel.id });

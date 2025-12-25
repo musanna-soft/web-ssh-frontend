@@ -28,12 +28,6 @@ const router = createRouter({
             component: () => import('../views/TerminalView.vue'),
             meta: { requiresAuth: true },
         },
-        {
-            path: '/files/:id',
-            name: 'files',
-            component: () => import('../views/FileManager.vue'),
-            meta: { requiresAuth: true },
-        },
     ],
 });
 

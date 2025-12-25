@@ -10,7 +10,11 @@
                 <button @click="navigate('..')" class="btn-secondary small"
                     :disabled="currentPath === '/' || isLoading">⬆</button>
                 <button @click="refresh" class="btn-secondary small" :disabled="isLoading">↻</button>
+                <button @click="triggerUploadPicker" class="btn-secondary small" title="Upload"
+                    :disabled="isLoading || isUploading">📤</button>
                 <button @click="createDirectory" class="btn-secondary small" :disabled="isLoading">+</button>
+                <input ref="uploadInput" type="file" multiple hidden @change="handleUploadPicked"
+                    :disabled="isLoading || isUploading" />
             </div>
         </div>
 
@@ -33,7 +37,7 @@
                     </tr>
                     <tr v-for="file in files" :key="file.name"
                         :class="{ 'folder-row': file.is_dir, 'drag-over': dragOverId === file.name }"
-                        @click="file.is_dir ? navigate(currentPath + '/' + file.name) : $emit('open-file', file.name, currentPath)"
+                        @click="file.is_dir ? navigate(currentPath + '/' + file.name) : $emit('open-file', file.name, currentPath, file.size)"
                         draggable="true" @dragstart="handleDragStart(file, $event)"
                         @dragenter="file.is_dir ? dragOverId = file.name : null"
                         @dragleave="file.is_dir && dragOverId === file.name ? dragOverId = null : null"
@@ -81,11 +85,126 @@ const currentPath = ref(props.initialPath || '.');
 const files = ref([]);
 const isLoading = ref(false); // General loading (ls, mkdir)
 const loadingFiles = ref(new Set()); // Per-file loading (download)
+const isUploading = ref(false);
 const dragOverId = ref(null);
 let socket = null;
 
+const uploadInput = ref(null);
+
+const triggerUploadPicker = () => {
+    if (isLoading.value || isUploading.value) return;
+    uploadInput.value?.click?.();
+};
+
+const handleUploadPicked = async (event) => {
+    const input = event?.target;
+    const picked = input?.files;
+    if (!picked || picked.length === 0) return;
+
+    await uploadFiles(picked);
+
+    // Allow re-selecting the same file(s)
+    if (input) input.value = '';
+};
+
+let isUnmounting = false;
+let reconnectAttempts = 0;
+const maxReconnectAttempts = 10;
+let reconnectTimeout = null;
+let pingInterval = null;
+
+const startPingInterval = () => {
+    stopPingInterval();
+    pingInterval = setInterval(() => {
+        if (socket && socket.readyState === WebSocket.OPEN) {
+            socket.send(JSON.stringify({ action: 'ping' }));
+        }
+    }, 30000);
+};
+
+const stopPingInterval = () => {
+    if (pingInterval) {
+        clearInterval(pingInterval);
+        pingInterval = null;
+    }
+};
+
+const cleanup = () => {
+    stopPingInterval();
+    if (reconnectTimeout) {
+        clearTimeout(reconnectTimeout);
+        reconnectTimeout = null;
+    }
+};
+
+const attemptReconnect = () => {
+    if (reconnectAttempts >= maxReconnectAttempts) {
+        console.warn('Max SFTP reconnection attempts reached');
+        return;
+    }
+
+    reconnectAttempts++;
+    const delay = Math.min(1000 * Math.pow(2, reconnectAttempts - 1), 10000);
+
+    reconnectTimeout = setTimeout(() => {
+        connectWebSocket();
+    }, delay);
+};
+
+const uploadFiles = async (fileList, destinationPath = null) => {
+    const list = Array.from(fileList || []).filter(f => f && typeof f.name === 'string');
+    if (list.length === 0) return;
+
+    const dest = (destinationPath ?? currentPath.value);
+    const destPath = (dest && dest !== '.') ? dest : '/';
+
+    const token = authStore.token || localStorage.getItem('jwt_token');
+    const url = `${import.meta.env.VITE_API_BASE_URL}/api/sftp/upload`;
+
+    isUploading.value = true;
+    try {
+        for (const f of list) {
+            loadingFiles.value.add(f.name);
+            const form = new FormData();
+            form.append('server_id', String(props.serverId));
+            form.append('path', destPath);
+            form.append('file', f, f.name);
+
+            const res = await fetch(url, {
+                method: 'POST',
+                headers: token ? { Authorization: `Bearer ${token}` } : {},
+                body: form,
+            });
+            if (!res.ok) {
+                const text = await res.text().catch(() => '');
+                throw new Error(text || `Upload failed (HTTP ${res.status})`);
+            }
+
+            loadingFiles.value.delete(f.name);
+        }
+        refresh();
+    } catch (e) {
+        const message = (e && e.message) ? e.message : String(e);
+        alert('Upload error: ' + message);
+    } finally {
+        // best-effort cleanup
+        for (const f of list) loadingFiles.value.delete(f.name);
+        isUploading.value = false;
+    }
+};
+
 const connectWebSocket = () => {
-    const token = authStore.token;
+    // Close any existing socket before reconnecting
+    if (socket) {
+        try {
+            socket.close(1000, 'Reconnecting');
+        } catch (e) {
+            // ignore
+        }
+        socket = null;
+    }
+
+    const token = authStore.token || localStorage.getItem('jwt_token');
     const backendUrl = import.meta.env.VITE_API_BASE_URL;
     const protocol = backendUrl.startsWith('https') ? 'wss' : 'ws';
     const backendHost = backendUrl.replace(/^https?:\/\//, '');
@@ -94,14 +213,23 @@ const connectWebSocket = () => {
     socket = new WebSocket(wsUrl);
 
     socket.onopen = () => {
+        reconnectAttempts = 0;
+        startPingInterval();
         navigate(currentPath.value);
     };
 
     socket.onmessage = (event) => {
         isLoading.value = false;
-        const msg = JSON.parse(event.data);
+        let msg;
+        try {
+            msg = JSON.parse(event.data);
+        } catch (e) {
+            return;
+        }
         if (msg.error) {
             alert('Error: ' + msg.error);
+        } else if (msg.action === 'pong') {
+            return;
         } else if (msg.action === 'ls') {
             currentPath.value = msg.path;
             files.value = msg.files.sort((a, b) => {
@@ -111,6 +239,24 @@ const connectWebSocket = () => {
         } else if (msg.action === 'mkdir' || msg.action === 'rm') {
             refresh();
         }
+    };
+
+    socket.onclose = (event) => {
+        stopPingInterval();
+        isLoading.value = false;
+
+        if (isUnmounting) {
+            return;
+        }
+
+        // Unexpected close => reconnect
+        if (event.code !== 1000) {
+            attemptReconnect();
+        }
+    };
+
+    socket.onerror = (error) => {
+        console.error('SFTP WebSocket error:', error);
     };
 };
 
@@ -175,6 +321,26 @@ const handleDragStart = (file, event) => {
 
 const handleDrop = (event, targetFolder = null) => {
     dragOverId.value = null;
+
+    // Local file(s) drop => upload into current/target folder
+    const droppedFiles = event?.dataTransfer?.files;
+    if (droppedFiles && droppedFiles.length > 0) {
+        // Calculate destination path
+        let destPath = currentPath.value;
+        if (targetFolder) {
+            if (targetFolder === '..') {
+                const parts = currentPath.value.split('/').filter(p => p);
+                parts.pop();
+                destPath = '/' + parts.join('/');
+            } else {
+                destPath = (currentPath.value === '/' ? '' : currentPath.value) + '/' + targetFolder;
+            }
+        }
+        destPath = destPath.replace(/\/+$/g, '') || '/';
+        uploadFiles(droppedFiles, destPath);
+        return;
+    }
+
     const fileName = event.dataTransfer.getData('fileName');
     const sourcePath = event.dataTransfer.getData('sourcePath');
     const sourcePane = event.dataTransfer.getData('sourcePane');
@@ -220,10 +386,14 @@ onMounted(() => {
 });
 
 onBeforeUnmount(() => {
-    if (socket) socket.close();
+    isUnmounting = true;
+    cleanup();
+    if (socket) {
+        socket.close(1000, 'Component unmounting');
+    }
 });
 
-defineExpose({ refresh });
+defineExpose({ refresh, uploadFiles });
 </script>
 
 <style scoped>

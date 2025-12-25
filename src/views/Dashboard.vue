@@ -119,6 +119,19 @@
         </div>
     </div>
 
+    <!-- Image Viewer Modal (Global for all panels) -->
+    <div v-if="imageViewerOpen" class="modal-overlay" @click.self="closeImageViewer">
+        <div class="modal-content image-modal">
+            <div class="image-header">
+                <h2>{{ editingFile }}</h2>
+                <button @click="closeImageViewer" class="icon-btn-close">×</button>
+            </div>
+            <div class="image-container">
+                <img :src="imageSrc" alt="Preview" />
+            </div>
+        </div>
+    </div>
+
     <TransferChoiceModal :isOpen="showTransferModal" :fileName="transferData?.fileName || ''"
         :destPath="transferData?.destPath || ''" @action="handleTransferAction" />
 </template>
@@ -152,6 +165,10 @@ const editingFile = ref('');
 const fileContent = ref('');
 const editingPath = ref('');
 const editingServerId = ref(null);
+
+// Image Viewer State (Global)
+const imageViewerOpen = ref(false);
+const imageSrc = ref('');
 
 // Transfer Modal State
 const showTransferModal = ref(false);
@@ -395,18 +412,77 @@ const removePanel = (id) => {
     }
 };
 
+const downloadBlob = (blob, fileName) => {
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', fileName);
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    // revoke async to avoid breaking the download in some browsers
+    setTimeout(() => {
+        try {
+            window.URL.revokeObjectURL(url);
+        } catch (e) {
+            // ignore
+        }
+    }, 0);
+};
+
 // File Operations (Global handlers)
-const handleOpenFile = async ({ serverId, name, path }) => {
+const handleOpenFile = async ({ serverId, name, path, size }) => {
     const fullPath = (path === '/' ? '' : path) + '/' + name;
+    const MAX_PREVIEW_BYTES = 2 * 1024 * 1024; // 2MB
+
+    const downloadRelUrl = `/sftp/download?server_id=${serverId}&path=${encodeURIComponent(fullPath)}`;
+
+    // Rely on WS-provided size for the memory guard.
+    // If size is missing, avoid reading the file into memory and just download.
+    if (!Number.isFinite(size)) {
+        handleDownloadFile({ serverId, name, path });
+        return;
+    }
+
+    if (size > MAX_PREVIEW_BYTES) {
+        handleDownloadFile({ serverId, name, path });
+        return;
+    }
+
     try {
-        const res = await api.get(`/sftp/content?server_id=${serverId}&path=${encodeURIComponent(fullPath)}`);
-        fileContent.value = res.data;
-        editingFile.value = name;
-        editingPath.value = fullPath;
-        editingServerId.value = serverId;
-        editorOpen.value = true;
+        const res = await api.get(downloadRelUrl, { responseType: 'blob' });
+        const contentType = (res.headers?.['content-type'] || '').toLowerCase();
+
+        if (contentType.startsWith('image/')) {
+            if (imageSrc.value) {
+                try {
+                    window.URL.revokeObjectURL(imageSrc.value);
+                } catch (e) {
+                    // ignore
+                }
+            }
+            imageSrc.value = window.URL.createObjectURL(res.data);
+            editingFile.value = name;
+            editingPath.value = fullPath;
+            editingServerId.value = serverId;
+            imageViewerOpen.value = true;
+            return;
+        }
+
+        if (contentType.startsWith('text/') || contentType.includes('json')) {
+            fileContent.value = await res.data.text();
+            editingFile.value = name;
+            editingPath.value = fullPath;
+            editingServerId.value = serverId;
+            editorOpen.value = true;
+            return;
+        }
+
+        // Unknown/binary (but small): just download the blob we already have.
+        downloadBlob(res.data, name);
     } catch (err) {
         alert('Failed to open file: ' + err.message);
+        handleDownloadFile({ serverId, name, path });
     }
 };
 
@@ -414,6 +490,21 @@ const closeEditor = () => {
     editorOpen.value = false;
     editingFile.value = '';
     fileContent.value = '';
+    editingPath.value = '';
+    editingServerId.value = null;
+};
+
+const closeImageViewer = () => {
+    imageViewerOpen.value = false;
+    if (imageSrc.value) {
+        try {
+            window.URL.revokeObjectURL(imageSrc.value);
+        } catch (e) {
+            // ignore
+        }
+    }
+    imageSrc.value = '';
+    editingFile.value = '';
     editingPath.value = '';
     editingServerId.value = null;
 };
@@ -433,10 +524,10 @@ const saveFile = async () => {
 };
 
 const handleDownloadFile = (data) => {
-    // Implement download logic (reuse from FileManager)
+    // Implement download logic
     const { serverId, name, path, cb } = data;
     const fullPath = (path === '/' ? '' : path) + '/' + name;
-    const url = `${import.meta.env.VITE_API_BASE_URL}/api/sftp/download?server_id=${serverId}&path=${encodeURIComponent(fullPath)}`;
+    const url = `/sftp/download?server_id=${serverId}&path=${encodeURIComponent(fullPath)}`;
 
     api.get(url, { responseType: 'blob' })
         .then(response => {
@@ -457,7 +548,7 @@ const handleDownloadFile = (data) => {
 const handleDownloadZip = (data) => {
     const { serverId, name, path, cb } = data;
     const fullPath = (path === '/' ? '' : path) + '/' + name;
-    const url = `${import.meta.env.VITE_API_BASE_URL}/api/sftp/zip?server_id=${serverId}&path=${encodeURIComponent(fullPath)}`;
+    const url = `/sftp/zip?server_id=${serverId}&path=${encodeURIComponent(fullPath)}`;
 
     api.get(url, { responseType: 'blob' })
         .then(response => {
@@ -1069,5 +1160,47 @@ header {
     display: flex;
     justify-content: flex-end;
     gap: 1rem;
+}
+
+/* Image Viewer Modal */
+.image-modal {
+    width: 90%;
+    height: 90%;
+    display: flex;
+    flex-direction: column;
+}
+
+.image-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+.icon-btn-close {
+    background: transparent;
+    border: none;
+    color: #ccc;
+    cursor: pointer;
+    font-size: 1.5rem;
+    line-height: 1;
+}
+
+.icon-btn-close:hover {
+    color: #fff;
+}
+
+.image-container {
+    flex: 1;
+    overflow: auto;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+}
+
+.image-container img {
+    max-width: 100%;
+    height: auto;
 }
 </style>
