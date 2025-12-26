@@ -660,7 +660,9 @@ onMounted(() => {
     box-shadow: 4px 0 24px rgba(0, 0, 0, 0.2);
     z-index: 10;
     transition: width 0.3s ease, padding 0.3s ease;
-    overflow: hidden;
+    overflow-y: auto;
+    overflow-x: hidden;
+    flex-shrink: 0;
 }
 
 .sidebar.collapsed {
@@ -1202,5 +1204,144 @@ header {
 .image-container img {
     max-width: 100%;
     height: auto;
+}
+
+/* Responsive Styles */
+@media (max-width: 1024px) {
+    .dashboard-content {
+        padding: 1.5rem 2rem;
+    }
+
+    .servers-grid {
+        grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+        gap: 1.5rem;
+    }
+}
+
+@media (max-width: 768px) {
+    .dashboard-layout {
+        flex-direction: column;
+    }
+
+    .sidebar {
+        width: 100%;
+        max-width: 100%;
+        height: auto;
+        max-height: 50vh;
+        border-right: none;
+        border-bottom: 1px solid #444;
+        padding: 1rem;
+        flex-shrink: 0;
+    }
+
+    .dashboard-content {
+        padding: 1rem;
+        overflow-y: auto;
+    }
+
+    .servers-grid {
+        grid-template-columns: 1fr;
+        gap: 1rem;
+    }
+
+    header {
+        flex-direction: column;
+        gap: 1rem;
+        align-items: stretch;
+    }
+
+    .actions {
+        width: 100%;
+        flex-direction: column;
+    }
+
+    .btn-primary,
+    .btn-secondary {
+        width: 100%;
+    }
+
+    .servers-mini-bar {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 0.5rem;
+    }
+
+    .mini-server-list {
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+
+    .mini-server-item {
+        justify-content: space-between;
+    }
+
+    .panels-container {
+        flex-direction: column;
+    }
+
+    .panel-wrapper {
+        border-right: none;
+        border-bottom: 1px solid #444;
+        min-height: 300px;
+    }
+
+    .panel-wrapper:last-child {
+        border-bottom: none;
+    }
+
+    .card-footer {
+        flex-direction: column;
+    }
+
+    .user-info {
+        padding: 0.75rem;
+    }
+
+    .folder-list {
+        max-height: 200px;
+    }
+}
+
+@media (max-width: 480px) {
+    .dashboard-content {
+        padding: 0.75rem;
+    }
+
+    .header-title h2 {
+        font-size: 1.25rem;
+    }
+
+    .server-card {
+        padding: 1rem;
+    }
+
+    .card-header h3 {
+        font-size: 1rem;
+    }
+
+    .card-body p {
+        font-size: 0.8rem;
+    }
+
+    .user-name {
+        font-size: 0.85rem;
+    }
+
+    .user-email {
+        font-size: 0.75rem;
+    }
+
+    .folder-item {
+        padding: 0.6rem 0.75rem;
+        font-size: 0.9rem;
+    }
+
+    .panel-header {
+        padding: 0.4rem 0.75rem;
+    }
+
+    .panel-title {
+        font-size: 0.85rem;
+    }
 }
 </style>

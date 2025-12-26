@@ -1,4 +1,6 @@
-# Web SSH Frontend
+# Remofy Frontend
+
+This is the frontend component of Remofy - a secure remote server management platform built with Vue.js.
 
 This is the frontend component of the Web SSH application, built with Vue 3 and Vite. It provides a web interface for connecting to SSH servers.
 

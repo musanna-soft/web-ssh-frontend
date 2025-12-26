@@ -537,4 +537,55 @@ defineExpose({ refresh, uploadFiles });
 .icon-btn.delete:hover {
     color: #ff4444;
 }
+
+/* Responsive Styles */
+@media (max-width: 768px) {
+    .pane-header {
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+
+    .path-nav {
+        width: 100%;
+    }
+
+    .pane-actions {
+        width: 100%;
+        justify-content: space-between;
+    }
+
+    .file-table {
+        font-size: 0.85rem;
+    }
+
+    .file-table th,
+    .file-table td {
+        padding: 6px 4px;
+    }
+
+    .actions-cell {
+        white-space: nowrap;
+    }
+}
+
+@media (max-width: 480px) {
+    .file-table {
+        font-size: 0.8rem;
+    }
+
+    .file-table th:nth-child(2),
+    .file-table td:nth-child(2) {
+        display: none;
+    }
+
+    .icon-btn {
+        font-size: 0.9rem;
+    }
+
+    .btn-primary.small,
+    .btn-secondary.small {
+        padding: 0.4rem 0.6rem;
+        font-size: 0.85rem;
+    }
+}
 </style>

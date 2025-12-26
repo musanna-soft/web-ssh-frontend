@@ -335,4 +335,52 @@ h2 {
     font-size: 1.2rem;
     z-index: 100;
 }
+
+/* Responsive Styles */
+@media (max-width: 768px) {
+    .terminal-container {
+        height: 100%;
+    }
+
+    .header {
+        padding: 0.4rem 0.75rem;
+    }
+
+    h2 {
+        font-size: 0.9rem;
+    }
+
+    .terminal-window {
+        padding: 0.25rem;
+    }
+
+    .status-overlay {
+        font-size: 1rem;
+        padding: 0.75rem 1.5rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .header {
+        padding: 0.3rem 0.5rem;
+    }
+
+    h2 {
+        font-size: 0.85rem;
+    }
+
+    .back-btn {
+        font-size: 0.9rem;
+        margin-right: 0.5rem;
+    }
+
+    .status {
+        font-size: 0.75rem;
+    }
+
+    .status-overlay {
+        font-size: 0.9rem;
+        padding: 0.5rem 1rem;
+    }
+}
 </style>
