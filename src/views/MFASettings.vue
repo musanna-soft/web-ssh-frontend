@@ -105,7 +105,7 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue';
-import { useRouter } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 import api from '../api.js';
 import {
     isWebAuthnSupported,
@@ -115,6 +115,7 @@ import {
 } from '../webauthn.js';
 
 const router = useRouter();
+const route = useRoute();
 
 const loading = ref(true);
 const busy = ref(false);
@@ -125,7 +126,16 @@ const bindError = ref('');
 
 const canAddDevice = computed(() => status.value.active && isWebAuthnSupported());
 
-onMounted(refresh);
+onMounted(async () => {
+    await refresh();
+    // Auto-open the add-device prompt when MFAUnlock redirected here after
+    // a TOTP unlock with no credentials registered. We only trigger once
+    // per page load — bindDevice's failure cases (cancelled, etc.) leave
+    // the user in control.
+    if (route.query.bind === '1' && canAddDevice.value) {
+        await addDevice();
+    }
+});
 
 async function refresh() {
     loading.value = true;

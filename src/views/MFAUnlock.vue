@@ -70,7 +70,11 @@ import {
 const router = useRouter();
 
 const webauthnAvailable = isWebAuthnSupported();
-const mode = ref(webauthnAvailable ? 'webauthn' : 'totp');
+// Start in TOTP mode and only switch to WebAuthn once /status confirms the
+// user has at least one credential registered. Otherwise pressing the
+// biometric button would round-trip to "no credentials registered".
+const mode = ref('totp');
+const hasDevices = ref(false);
 const busy = ref(false);
 const error = ref('');
 
@@ -78,7 +82,6 @@ const code = ref('');
 const recoveryCode = ref('');
 
 onMounted(async () => {
-    // If the user has no WebAuthn credentials registered, fall back to TOTP.
     try {
         const { data } = await api.post('/mfa/status');
         if (!data.enrolled) {
@@ -91,7 +94,10 @@ onMounted(async () => {
             router.replace(next);
             return;
         }
-        if (!data.devices || data.devices === 0) {
+        hasDevices.value = (data.devices || 0) > 0;
+        if (hasDevices.value && webauthnAvailable) {
+            mode.value = 'webauthn';
+        } else {
             mode.value = 'totp';
         }
     } catch (e) {
@@ -155,6 +161,13 @@ async function unlockRecovery() {
 }
 
 function success() {
+    // If the user just unlocked via TOTP / recovery and still has no
+    // WebAuthn credential on this browser, offer to bind one now.
+    // /mfa/settings will auto-open its add-device dialog when ?bind=1.
+    if (!hasDevices.value && webauthnAvailable && mode.value !== 'webauthn') {
+        router.replace({ path: '/mfa/settings', query: { bind: '1' } });
+        return;
+    }
     const next = router.currentRoute.value.query.next || '/';
     router.replace(next);
 }
