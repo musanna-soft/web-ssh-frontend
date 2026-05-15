@@ -23,7 +23,11 @@
                         </li>
                         <li>
                             <span class="dot dim" />
-                            Ishonchli qurilmalar: <b>{{ status.devices }}</b>
+                            Passkey qurilmalar: <b>{{ status.devices }}</b>
+                        </li>
+                        <li>
+                            <span class="dot dim" />
+                            PIN qurilmalar: <b>{{ pinDevices.length }}</b>
                         </li>
                         <li>
                             <span class="dot dim" />
@@ -39,14 +43,14 @@
                 <!-- Devices -->
                 <section class="block" v-if="status.enrolled">
                     <h2>
-                        Ishonchli qurilmalar
+                        Ishonchli qurilmalar (passkey)
                         <button class="link" @click="addDevice" v-if="canAddDevice">+ Yangi qurilma</button>
                     </h2>
-                    <p v-if="!devices.length" class="hint">Hech qanday qurilma bog'lanmagan.</p>
+                    <p v-if="!devices.length" class="hint">Hech qanday passkey qurilma bog'lanmagan.</p>
                     <ul v-else class="devices">
                         <li v-for="d in devices" :key="d.id">
                             <div>
-                                <b>{{ d.label || '(nomsiz)' }}</b>
+                                <b>🔐 {{ d.label || '(nomsiz)' }}</b>
                                 <div class="muted">
                                     Qo'shilgan: {{ formatDate(d.created_at) }} ·
                                     Oxirgi: {{ formatDate(d.last_used_at) || '—' }}
@@ -58,6 +62,30 @@
                         </li>
                     </ul>
                     <p v-if="bindError" class="error">{{ bindError }}</p>
+                </section>
+
+                <!-- PIN Devices (Telegram mobile / wallet-style) -->
+                <section class="block" v-if="status.enrolled">
+                    <h2>PIN qurilmalar (Telegram)</h2>
+                    <p v-if="!pinDevices.length" class="hint">
+                        Bu yerda Telegram mobile orqali ro'yxatga olingan PIN qurilmalar ko'rinadi.
+                        Telegram bot Mini App'da PIN o'rnatish mumkin.
+                    </p>
+                    <ul v-else class="devices">
+                        <li v-for="d in pinDevices" :key="'pin-' + d.id">
+                            <div>
+                                <b>🔢 {{ d.label || '(nomsiz)' }}</b>
+                                <div class="muted">
+                                    Telegram: {{ d.telegram_id }} ·
+                                    Qo'shilgan: {{ formatDate(d.created_at) }} ·
+                                    Oxirgi: {{ formatDate(d.last_used_at) || '—' }}
+                                </div>
+                            </div>
+                            <button class="danger small" @click="revokePin(d.id)" :disabled="busy">
+                                Bekor qilish
+                            </button>
+                        </li>
+                    </ul>
                 </section>
 
                 <!-- Recovery -->
@@ -134,6 +162,7 @@ const loading = ref(true);
 const busy = ref(false);
 const status = ref({ enrolled: false, active: false, devices: 0, recovery_remaining: 0 });
 const devices = ref([]);
+const pinDevices = ref([]);
 const newCodes = ref([]);
 const bindError = ref('');
 
@@ -157,6 +186,15 @@ async function refresh() {
         status.value = s;
         const { data: d } = await api.get('/mfa/devices');
         devices.value = d.devices || [];
+        // PIN devices live in their own endpoint. Failures are non-fatal:
+        // a fresh deploy where pin_devices doesn't exist yet shouldn't
+        // break the whole settings page.
+        try {
+            const { data: p } = await api.get('/mfa/pin/devices');
+            pinDevices.value = p.devices || [];
+        } catch (_) {
+            pinDevices.value = [];
+        }
     } catch (e) {
         // 401/403 already handled by interceptor.
     } finally {
@@ -190,6 +228,19 @@ async function revoke(id) {
     busy.value = true;
     try {
         await api.delete(`/mfa/devices/${id}`);
+        await refresh();
+    } catch (e) {
+        bindError.value = formatError(e);
+    } finally {
+        busy.value = false;
+    }
+}
+
+async function revokePin(id) {
+    if (!confirm("Ushbu PIN qurilmani bekor qilishni xohlaysizmi?")) return;
+    busy.value = true;
+    try {
+        await api.delete(`/mfa/pin/devices/${id}`);
         await refresh();
     } catch (e) {
         bindError.value = formatError(e);
