@@ -17,7 +17,7 @@
 
             <!-- TOTP -->
             <section v-else-if="mode === 'totp'">
-                <p class="hint">Authenticator ilovasidan 6-xonali kodni kiriting.</p>
+                <p class="hint">{{ totpHint }}</p>
                 <input
                     v-model="code"
                     type="tel"
@@ -70,13 +70,12 @@ import {
 const router = useRouter();
 
 const webauthnAvailable = isWebAuthnSupported();
-// Start in TOTP mode and only switch to WebAuthn once /status confirms the
-// user has at least one credential registered. Otherwise pressing the
-// biometric button would round-trip to "no credentials registered".
 const mode = ref('totp');
 const hasDevices = ref(false);
+const webauthnFailed = ref(false); // set when auto-unlock can't find a credential on THIS device
 const busy = ref(false);
 const error = ref('');
+const totpHint = ref('Authenticator ilovasidan 6-xonali kodni kiriting.');
 
 const code = ref('');
 const recoveryCode = ref('');
@@ -89,7 +88,6 @@ onMounted(async () => {
             return;
         }
         if (data.active) {
-            // Already unlocked — bounce home.
             const next = router.currentRoute.value.query.next || '/';
             router.replace(next);
             return;
@@ -97,12 +95,14 @@ onMounted(async () => {
         hasDevices.value = (data.devices || 0) > 0;
         if (hasDevices.value && webauthnAvailable) {
             mode.value = 'webauthn';
+            // Auto-trigger the prompt — saves the user a click on the
+            // happy path, gracefully falls back on the cross-device path.
+            setTimeout(unlockWebAuthn, 150);
         } else {
             mode.value = 'totp';
         }
     } catch (e) {
-        // status returns 200 on success; if it 403'd we'd already have
-        // been redirected. Ignore non-fatal errors here.
+        // /status itself 403 already triggered the global redirect.
     }
 });
 
@@ -120,10 +120,32 @@ async function unlockWebAuthn() {
         });
         success();
     } catch (e) {
-        error.value = formatError(e);
+        // Common cause: the user has a passkey registered on another
+        // device (Windows Hello on PC) but not this one (phone browser).
+        // Quietly switch to TOTP with a helpful message rather than
+        // showing a raw WebAuthn error.
+        if (isWebAuthnNoCredentialError(e)) {
+            webauthnFailed.value = true;
+            mode.value = 'totp';
+            totpHint.value = "Bu qurilmada biometrik kalit topilmadi. TOTP kod bilan kiring — kirgandan keyin shu qurilmani ham bog'lashingiz mumkin.";
+            error.value = '';
+        } else {
+            error.value = formatError(e);
+        }
     } finally {
         busy.value = false;
     }
+}
+
+// Most WebAuthn failures here are "no credential on this device" rather
+// than something the user can fix by retrying. We treat NotAllowedError,
+// InvalidStateError, and "no credentials registered" string matches as
+// the cross-device case worth auto-falling-back from.
+function isWebAuthnNoCredentialError(e) {
+    if (!e) return false;
+    if (e.name === 'NotAllowedError' || e.name === 'InvalidStateError') return true;
+    const msg = (formatError(e) || '').toLowerCase();
+    return msg.includes('credential') || msg.includes('registered') || msg.includes('allowed');
 }
 
 async function unlockTotp() {
@@ -161,10 +183,15 @@ async function unlockRecovery() {
 }
 
 function success() {
-    // If the user just unlocked via TOTP / recovery and still has no
-    // WebAuthn credential on this browser, offer to bind one now.
-    // /mfa/settings will auto-open its add-device dialog when ?bind=1.
-    if (!hasDevices.value && webauthnAvailable && mode.value !== 'webauthn') {
+    // Offer to bind a passkey on THIS device when either no credentials
+    // exist yet, or the user fell back from a failed WebAuthn attempt
+    // (meaning the registered credentials live on other devices). Each
+    // device needs its own passkey to use biometric unlock.
+    const shouldOfferBind =
+        webauthnAvailable &&
+        mode.value !== 'webauthn' &&
+        (!hasDevices.value || webauthnFailed.value);
+    if (shouldOfferBind) {
         router.replace({ path: '/mfa/settings', query: { bind: '1' } });
         return;
     }

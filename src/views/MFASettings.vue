@@ -85,6 +85,19 @@
                     <button class="warn" @click="lock" :disabled="busy">🔒 Hozir qulflash</button>
                 </section>
 
+                <!-- Reset -->
+                <section class="block danger-block" v-if="status.enrolled && status.active">
+                    <h2>MFA ni qayta sozlash</h2>
+                    <p class="warn">
+                        TOTP secret, recovery kodlar va barcha biometrik qurilmalar
+                        o'chiriladi. Keyin MFA'ni noldan sozlashingiz kerak bo'ladi. Bu
+                        eski qurilmalardagi passkey'lar ishlamay qolganda foydali.
+                    </p>
+                    <button class="danger" @click="resetMFA" :disabled="busy">
+                        ⚠️ Hammasini qayta o'rnatish
+                    </button>
+                </section>
+
                 <!-- New recovery codes (after regenerate) -->
                 <section v-if="newCodes.length" class="block highlight">
                     <h2>⚠️ Yangi recovery kodlar</h2>
@@ -212,6 +225,26 @@ async function lock() {
     }
 }
 
+async function resetMFA() {
+    const confirmed = confirm(
+        "TOTP, recovery kodlar va barcha biometrik qurilmalar O'CHIRILADI. " +
+        "Davom etamizmi? Keyin MFA'ni qaytadan sozlash kerak bo'ladi."
+    );
+    if (!confirmed) return;
+    busy.value = true;
+    try {
+        await api.post('/mfa/reset');
+        // After reset the next API call will 403 with enrolled=false and
+        // the global interceptor sends us to /mfa/setup. Do it explicitly
+        // so the user doesn't see a flash of the now-empty settings page.
+        router.replace('/mfa/setup');
+    } catch (e) {
+        bindError.value = formatError(e);
+    } finally {
+        busy.value = false;
+    }
+}
+
 function downloadCodes() {
     const blob = new Blob(
         [
@@ -291,6 +324,10 @@ h2 {
 .block.highlight {
     background: #422006;
     border: 1px solid #78350f;
+}
+.block.danger-block {
+    background: #2a0e0e;
+    border: 1px solid #7f1d1d;
 }
 .status {
     list-style: none;
