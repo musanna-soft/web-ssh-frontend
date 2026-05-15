@@ -183,15 +183,12 @@ async function unlockRecovery() {
 }
 
 function success() {
-    // Offer to bind a passkey on THIS device when either no credentials
-    // exist yet, or the user fell back from a failed WebAuthn attempt
-    // (meaning the registered credentials live on other devices). Each
-    // device needs its own passkey to use biometric unlock.
-    const shouldOfferBind =
-        webauthnAvailable &&
-        mode.value !== 'webauthn' &&
-        (!hasDevices.value || webauthnFailed.value);
-    if (shouldOfferBind) {
+    // After any TOTP / recovery unlock, offer to bind a passkey on
+    // THIS device. Passkeys are per-device, so even users with
+    // credentials elsewhere may want one here. Settings opens the
+    // add-device dialog automatically via ?bind=1; the user can
+    // dismiss it if they don't want to.
+    if (webauthnAvailable && mode.value !== 'webauthn') {
         router.replace({ path: '/mfa/settings', query: { bind: '1' } });
         return;
     }
