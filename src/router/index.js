@@ -40,6 +40,12 @@ const router = createRouter({
             component: () => import('../views/MFAUnlock.vue'),
             meta: { requiresAuth: true },
         },
+        {
+            path: '/mfa/settings',
+            name: 'mfa-settings',
+            component: () => import('../views/MFASettings.vue'),
+            meta: { requiresAuth: true },
+        },
     ],
 });
 

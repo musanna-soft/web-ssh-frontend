@@ -37,6 +37,9 @@
             </button>
 
             <div class="sidebar-footer">
+                <router-link to="/mfa/settings" class="btn-secondary mfa-btn">
+                    🔐 MFA
+                </router-link>
                 <button @click="logout" class="btn-secondary logout-btn">
                     <span>Logout</span>
                 </button>
@@ -686,6 +689,21 @@ onMounted(() => {
     color: #fde68a;
     margin-left: 8px;
     text-decoration: underline;
+}
+
+.mfa-btn {
+    display: block;
+    text-align: center;
+    text-decoration: none;
+    padding: 8px 12px;
+    margin-bottom: 8px;
+    background: #383838;
+    color: #e2e8f0;
+    border-radius: 6px;
+    border: 1px solid #555;
+}
+.mfa-btn:hover {
+    background: #444;
 }
 
 .sidebar {
