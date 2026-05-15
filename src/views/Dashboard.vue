@@ -1,5 +1,10 @@
 <template>
     <div class="dashboard-layout">
+        <div v-if="showGraceBanner" class="grace-banner">
+            🔔 MFA majburiy bo'lib bormoqda. Hisobingiz <b>{{ formattedGrace }}</b> sanasigacha
+            qulflanmaydi.
+            <router-link to="/mfa/setup">Hozir sozlash</router-link>
+        </div>
         <aside class="sidebar" v-if="showSidebar">
             <div class="user-info" v-if="user">
                 <img :src="user.avatar_url" alt="Avatar" class="avatar" />
@@ -141,6 +146,7 @@ import { ref, computed, onMounted, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import api from '../api';
 import { useAuthStore } from '../stores/auth';
+import { useMFAStore } from '../stores/mfa';
 import { usePanelStore } from '../stores/panels';
 import ServerModal from '../components/ServerModal.vue';
 import PanelContainer from '../components/PanelContainer.vue';
@@ -148,8 +154,24 @@ import TransferChoiceModal from '../components/TransferChoiceModal.vue';
 
 const router = useRouter();
 const authStore = useAuthStore();
+const mfaStore = useMFAStore();
 const panelStore = usePanelStore();
 const user = computed(() => authStore.user);
+
+// Grace-period banner: shown only when the server has told us via the
+// X-MFA-Grace-Until response header that the user hasn't enrolled yet
+// but is still allowed through.
+const showGraceBanner = computed(
+    () => !!mfaStore.graceUntil && !mfaStore.enrolled
+);
+const formattedGrace = computed(() => {
+    if (!mfaStore.graceUntil) return '';
+    try {
+        return new Date(mfaStore.graceUntil).toISOString().slice(0, 10);
+    } catch (_) {
+        return mfaStore.graceUntil;
+    }
+});
 
 const servers = ref([]);
 const folders = ref([]);
@@ -644,10 +666,26 @@ onMounted(() => {
 <style scoped>
 .dashboard-layout {
     display: flex;
+    flex-wrap: wrap;
     height: 100vh;
     background: #383838;
     color: #e2e8f0;
     font-family: 'Inter', sans-serif;
+}
+
+.grace-banner {
+    flex-basis: 100%;
+    background: #422006;
+    color: #fde68a;
+    padding: 10px 16px;
+    font-size: 0.9rem;
+    border-bottom: 1px solid #78350f;
+}
+
+.grace-banner a {
+    color: #fde68a;
+    margin-left: 8px;
+    text-decoration: underline;
 }
 
 .sidebar {
