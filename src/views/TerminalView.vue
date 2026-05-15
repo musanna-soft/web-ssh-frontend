@@ -1,13 +1,41 @@
 <template>
     <div class="terminal-container">
         <div class="header" v-if="!isComponent">
-            <button @click="goBack" class="back-btn">← Back</button>
-            <h2>{{ serverName }}</h2>
+            <button @click="goBack" class="back-btn" type="button" aria-label="Back">
+                <span aria-hidden="true">←</span>
+                <span class="back-label">Back</span>
+            </button>
+            <h2 class="server-title">{{ serverName }}</h2>
             <div class="status" :class="{ connected: isConnected }">
-                {{ isConnected ? 'Connected' : 'Disconnected' }}
+                <span class="status-dot" aria-hidden="true"></span>
+                <span class="status-label">{{ isConnected ? 'Connected' : 'Disconnected' }}</span>
             </div>
         </div>
+
         <div ref="terminalContainer" class="terminal-window"></div>
+
+        <!-- Touch keyboard helpers — shown when a coarse pointer is detected.
+             Sends raw escape sequences over the same WebSocket. -->
+        <div
+            v-if="showTouchBar"
+            class="touch-bar"
+            role="toolbar"
+            aria-label="Terminal helper keys"
+        >
+            <button type="button" class="key" :class="{ active: ctrlArmed }" @click="toggleCtrl" aria-pressed="ctrlArmed">Ctrl</button>
+            <button type="button" class="key" @click="sendSeq('\x1b')">Esc</button>
+            <button type="button" class="key" @click="sendSeq('\t')">Tab</button>
+            <button type="button" class="key" @click="sendSeq('|')">|</button>
+            <button type="button" class="key" @click="sendSeq('~')">~</button>
+            <button type="button" class="key" @click="sendSeq('/')">/</button>
+            <button type="button" class="key" @click="sendSeq('-')">-</button>
+            <span class="spacer" aria-hidden="true"></span>
+            <button type="button" class="key arrow" @click="sendSeq('\x1b[D')" aria-label="Left">◀</button>
+            <button type="button" class="key arrow" @click="sendSeq('\x1b[B')" aria-label="Down">▼</button>
+            <button type="button" class="key arrow" @click="sendSeq('\x1b[A')" aria-label="Up">▲</button>
+            <button type="button" class="key arrow" @click="sendSeq('\x1b[C')" aria-label="Right">▶</button>
+        </div>
+
         <div v-if="statusMessage" class="status-overlay">
             {{ statusMessage }}
         </div>
@@ -37,6 +65,16 @@ const isConnected = ref(false);
 const serverName = ref(props.serverName || route.query.name || 'Terminal');
 const statusMessage = ref('');
 
+// Touch keyboard bar: visible on coarse pointers (touch). Persists for the
+// life of the component — we don't reactively re-evaluate on rotation,
+// which is fine: a tablet doesn't switch pointer kind mid-session.
+const showTouchBar = ref(
+    typeof window !== 'undefined' &&
+    window.matchMedia &&
+    window.matchMedia('(pointer: coarse)').matches
+);
+const ctrlArmed = ref(false);
+
 let term = null;
 let socket = null;
 let fitAddon = null;
@@ -44,21 +82,32 @@ let pingInterval = null;
 let reconnectTimeout = null;
 let reconnectAttempts = 0;
 const maxReconnectAttempts = 5;
-let isUnmounting = false; // Track if component is being unmounted
+let isUnmounting = false;
+let resizeObserver = null;
 
 const goBack = () => {
     router.push('/');
 };
 
 const initTerminal = () => {
+    const isCoarse = typeof window !== 'undefined' &&
+        window.matchMedia && window.matchMedia('(pointer: coarse)').matches;
+
     term = new Terminal({
         cursorBlink: true,
-        fontFamily: 'Menlo, Monaco, "Courier New", monospace',
-        fontSize: 14,
+        fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, "Liberation Mono", monospace',
+        fontSize: isCoarse ? 13 : 14,
+        lineHeight: 1.2,
         theme: {
-            background: '#1e1e1e',
-            foreground: '#ffffff',
+            background: '#0f1115',
+            foreground: '#e7eaf0',
+            cursor: '#e7eaf0',
+            cursorAccent: '#0f1115',
+            selectionBackground: 'rgba(110, 168, 255, 0.35)',
         },
+        allowProposedApi: true,
+        macOptionIsMeta: true,
+        scrollback: 5000,
     });
 
     fitAddon = new FitAddon();
@@ -66,7 +115,6 @@ const initTerminal = () => {
     term.open(terminalContainer.value);
     fitAddon.fit();
 
-    // Auto-copy on selection
     term.onSelectionChange(() => {
         const selection = term.getSelection();
         if (selection) {
@@ -80,16 +128,21 @@ const initTerminal = () => {
         }
     });
 
-    // Handle Ctrl+Shift+C for copy and Ctrl+Shift+V for paste
     terminalContainer.value.addEventListener('keydown', handleKeyDown);
-
     window.addEventListener('resize', handleResize);
+
+    if (typeof ResizeObserver !== 'undefined') {
+        resizeObserver = new ResizeObserver(() => handleResize());
+        resizeObserver.observe(terminalContainer.value);
+    }
 };
 
 const handleResize = () => {
     if (fitAddon) {
-        fitAddon.fit();
-        if (socket && socket.readyState === WebSocket.OPEN) {
+        try {
+            fitAddon.fit();
+        } catch (_) { /* container detached during teardown */ }
+        if (socket && socket.readyState === WebSocket.OPEN && term) {
             socket.send(JSON.stringify({
                 type: 'resize',
                 cols: term.cols,
@@ -100,14 +153,12 @@ const handleResize = () => {
 };
 
 const handleKeyDown = (event) => {
-    // Ctrl+Shift+C - Copy selected text
     if (event.ctrlKey && event.shiftKey && event.key === 'C') {
         event.preventDefault();
         event.stopPropagation();
         const selection = term.getSelection();
         if (selection) {
             copyToClipboard(selection);
-            // Visual feedback
             term.write('\r\n\x1b[32m[Copied to clipboard]\x1b[0m\r\n');
         }
         return false;
@@ -122,18 +173,36 @@ const copyToClipboard = async (text) => {
     }
 };
 
-const startPingInterval = () => {
-    // Clear any existing interval
-    if (pingInterval) {
-        clearInterval(pingInterval);
+const sendSeq = (seq) => {
+    if (!socket || socket.readyState !== WebSocket.OPEN) return;
+
+    let payload = seq;
+
+    if (ctrlArmed.value && seq.length === 1) {
+        const c = seq.toLowerCase().charCodeAt(0);
+        if (c >= 97 && c <= 122) {
+            // a..z → 0x01..0x1A (Ctrl-A..Ctrl-Z)
+            payload = String.fromCharCode(c - 96);
+        }
+        ctrlArmed.value = false;
     }
 
-    // Send ping every 30 seconds to keep connection alive
+    socket.send(JSON.stringify({ type: 'data', content: payload }));
+    if (term) term.focus();
+};
+
+const toggleCtrl = () => {
+    ctrlArmed.value = !ctrlArmed.value;
+    if (term) term.focus();
+};
+
+const startPingInterval = () => {
+    if (pingInterval) clearInterval(pingInterval);
     pingInterval = setInterval(() => {
         if (socket && socket.readyState === WebSocket.OPEN) {
             socket.send(JSON.stringify({ type: 'ping' }));
         }
-    }, 30000); // 30 seconds
+    }, 30000);
 };
 
 const stopPingInterval = () => {
@@ -159,7 +228,7 @@ const attemptReconnect = () => {
     }
 
     reconnectAttempts++;
-    const delay = Math.min(1000 * Math.pow(2, reconnectAttempts - 1), 10000); // Exponential backoff, max 10s
+    const delay = Math.min(1000 * Math.pow(2, reconnectAttempts - 1), 10000);
 
     term.write(`\r\n\x1b[33mReconnecting in ${delay / 1000}s... (Attempt ${reconnectAttempts}/${maxReconnectAttempts})\x1b[0m\r\n`);
 
@@ -186,10 +255,10 @@ const connect = () => {
 
     socket.onopen = () => {
         isConnected.value = true;
-        reconnectAttempts = 0; // Reset reconnect attempts on successful connection
+        reconnectAttempts = 0;
         term.write('\r\n*** Connected to SSH Server ***\r\n');
-        handleResize(); // Send initial size
-        startPingInterval(); // Start keepalive pings
+        handleResize();
+        startPingInterval();
     };
 
     socket.onmessage = (event) => {
@@ -200,15 +269,10 @@ const connect = () => {
             };
             reader.readAsArrayBuffer(event.data);
         } else {
-            // Check if it's a JSON message (pong response)
             try {
                 const msg = JSON.parse(event.data);
-                if (msg.type === 'pong') {
-                    // Pong received, connection is alive
-                    return;
-                }
+                if (msg.type === 'pong') return;
             } catch (e) {
-                // Not JSON, treat as terminal output
                 term.write(event.data);
             }
         }
@@ -218,13 +282,9 @@ const connect = () => {
         isConnected.value = false;
         stopPingInterval();
 
-        // Don't reconnect if component is unmounting
-        if (isUnmounting) {
-            return;
-        }
+        if (isUnmounting) return;
 
-        // Check if this was an unexpected close
-        if (event.code !== 1000) { // 1000 = normal closure
+        if (event.code !== 1000) {
             term.write('\r\n\x1b[33mConnection lost. Attempting to reconnect...\x1b[0m\r\n');
             attemptReconnect();
         } else {
@@ -256,10 +316,14 @@ onMounted(() => {
 });
 
 onBeforeUnmount(() => {
-    isUnmounting = true; // Set flag before cleanup
+    isUnmounting = true;
     cleanup();
+    if (resizeObserver) {
+        try { resizeObserver.disconnect(); } catch (_) { /* ignore */ }
+        resizeObserver = null;
+    }
     if (socket) {
-        socket.close(1000, 'Component unmounting'); // Normal closure
+        socket.close(1000, 'Component unmounting');
     }
     if (terminalContainer.value) {
         terminalContainer.value.removeEventListener('keydown', handleKeyDown);
@@ -275,52 +339,140 @@ onBeforeUnmount(() => {
 .terminal-container {
     display: flex;
     flex-direction: column;
-    height: 80vh;
-    background: #1e1e1e;
+    height: 100%;
+    min-height: 0;
+    background: var(--bg-app);
     position: relative;
 }
 
 .header {
     display: flex;
     align-items: center;
-    padding: 0.5rem 1rem;
-    background: #2d2d2d;
-    border-bottom: 1px solid #333;
+    gap: 12px;
+    padding: 8px 14px;
+    background: var(--bg-surface);
+    border-bottom: 1px solid var(--border-subtle);
+    flex-shrink: 0;
 }
 
 .back-btn {
-    background: transparent;
-    border: none;
-    color: #ccc;
-    cursor: pointer;
-    margin-right: 1rem;
-    font-size: 1rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    color: var(--text-secondary);
+    font-size: 14px;
+    font-weight: 500;
+    min-height: 36px;
+    padding: 6px 10px;
+    border-radius: var(--radius-sm);
+    transition: background var(--dur-fast) var(--ease),
+                color var(--dur-fast) var(--ease);
 }
 
 .back-btn:hover {
-    color: #fff;
+    background: var(--bg-surface-3);
+    color: var(--text-primary);
 }
 
-h2 {
+.server-title {
+    flex: 1 1 auto;
     margin: 0;
-    font-size: 1rem;
-    flex-grow: 1;
+    font-size: 15px;
+    color: var(--text-primary);
     text-align: center;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-weight: 600;
 }
 
 .status {
-    font-size: 0.8rem;
-    color: #ff4444;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    color: var(--danger);
+    flex-shrink: 0;
 }
 
-.status.connected {
-    color: #00cc00;
+.status.connected { color: var(--success); }
+
+.status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: currentColor;
+    box-shadow: 0 0 0 3px color-mix(in srgb, currentColor 25%, transparent);
 }
 
 .terminal-window {
-    flex-grow: 1;
-    padding: 0.5rem;
+    flex: 1 1 auto;
+    min-height: 0;
+    padding: 6px 8px;
     overflow: hidden;
+}
+
+/* xterm itself needs to fill the window. */
+.terminal-window :deep(.xterm),
+.terminal-window :deep(.xterm-viewport),
+.terminal-window :deep(.xterm-screen) {
+    height: 100% !important;
+}
+
+.touch-bar {
+    display: flex;
+    gap: 6px;
+    padding: 8px;
+    padding-bottom: max(8px, env(safe-area-inset-bottom));
+    background: var(--bg-surface);
+    border-top: 1px solid var(--border-subtle);
+    overflow-x: auto;
+    flex-shrink: 0;
+    scrollbar-width: none;
+    align-items: center;
+}
+
+.touch-bar::-webkit-scrollbar { display: none; }
+
+.touch-bar .key {
+    min-width: 44px;
+    height: 38px;
+    padding: 0 10px;
+    border-radius: var(--radius-sm);
+    background: var(--bg-surface-2);
+    border: 1px solid var(--border-default);
+    color: var(--text-primary);
+    font-family: var(--font-mono);
+    font-size: 13px;
+    font-weight: 500;
+    flex-shrink: 0;
+    transition: background var(--dur-fast) var(--ease),
+                border-color var(--dur-fast) var(--ease),
+                transform var(--dur-fast) var(--ease);
+}
+
+.touch-bar .key:active {
+    background: var(--bg-surface-3);
+    transform: translateY(1px);
+}
+
+.touch-bar .key.active {
+    background: var(--accent-soft);
+    border-color: var(--accent);
+    color: var(--accent);
+}
+
+.touch-bar .key.arrow {
+    min-width: 40px;
+    font-size: 14px;
+}
+
+.touch-bar .spacer {
+    width: 1px;
+    height: 24px;
+    background: var(--border-subtle);
+    margin: 0 4px;
+    flex-shrink: 0;
 }
 
 .status-overlay {
@@ -328,59 +480,25 @@ h2 {
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    background: rgba(0, 0, 0, 0.8);
-    color: #fff;
-    padding: 1rem 2rem;
-    border-radius: 8px;
-    font-size: 1.2rem;
-    z-index: 100;
+    background: var(--bg-overlay-strong);
+    color: var(--text-primary);
+    padding: 14px 20px;
+    border-radius: var(--radius-md);
+    font-size: 15px;
+    z-index: 10;
+    border: 1px solid var(--border-default);
+    box-shadow: var(--shadow-md);
 }
 
-/* Responsive Styles */
-@media (max-width: 768px) {
-    .terminal-container {
-        height: 100%;
-    }
-
-    .header {
-        padding: 0.4rem 0.75rem;
-    }
-
-    h2 {
-        font-size: 0.9rem;
-    }
-
-    .terminal-window {
-        padding: 0.25rem;
-    }
-
-    .status-overlay {
-        font-size: 1rem;
-        padding: 0.75rem 1.5rem;
-    }
-}
-
+/* ── Phones ──────────────────────────────────────────────── */
 @media (max-width: 480px) {
-    .header {
-        padding: 0.3rem 0.5rem;
-    }
-
-    h2 {
-        font-size: 0.85rem;
-    }
-
-    .back-btn {
-        font-size: 0.9rem;
-        margin-right: 0.5rem;
-    }
-
-    .status {
-        font-size: 0.75rem;
-    }
-
-    .status-overlay {
-        font-size: 0.9rem;
-        padding: 0.5rem 1rem;
-    }
+    .header { padding: 6px 8px; gap: 6px; }
+    .back-btn { padding: 6px 8px; }
+    .back-label { display: none; }
+    .server-title { font-size: 13px; }
+    .status-label { display: none; }
+    .terminal-window { padding: 4px; }
+    .touch-bar .key { min-width: 40px; height: 36px; padding: 0 8px; font-size: 12px; }
+    .status-overlay { font-size: 13px; padding: 10px 16px; }
 }
 </style>

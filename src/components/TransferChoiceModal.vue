@@ -27,115 +27,118 @@ defineEmits(['action']);
 <style scoped>
 .modal-overlay {
     position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: rgba(0, 0, 0, 0.5);
+    inset: 0;
+    background: var(--bg-overlay-strong);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
     display: flex;
     justify-content: center;
     align-items: center;
-    z-index: 1000;
-    backdrop-filter: blur(4px);
+    z-index: var(--z-modal);
+    padding: 24px;
+    animation: fade-in var(--dur-base) var(--ease);
 }
 
 .modal-content {
-    background: #262626;
-    padding: 2rem;
-    border-radius: 12px;
-    width: 400px;
-    border: 1px solid #404040;
-    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+    background: var(--bg-surface);
+    padding: 24px;
+    border-radius: var(--radius-xl);
+    width: 100%;
+    max-width: 420px;
+    border: 1px solid var(--border-subtle);
+    box-shadow: var(--shadow-lg);
+    animation: pop-in var(--dur-base) var(--ease);
+}
+
+@keyframes fade-in { from { opacity: 0; } }
+@keyframes pop-in {
+    from { opacity: 0; transform: translateY(8px) scale(0.98); }
 }
 
 h3 {
-    margin-top: 0;
-    color: #fff;
-    margin-bottom: 1rem;
+    margin: 0 0 10px;
+    color: var(--text-primary);
+    font-size: 18px;
+    letter-spacing: -0.01em;
 }
 
 p {
-    color: #d4d4d4;
-    margin-bottom: 0.5rem;
+    color: var(--text-secondary);
+    margin: 0 0 8px;
+    font-size: 14px;
+    line-height: 1.5;
 }
 
+p b { color: var(--text-primary); }
+
 .destination-text {
-    font-size: 0.9rem;
-    color: #a3a3a3;
-    margin-bottom: 1.5rem;
-    font-family: monospace;
-    background: rgba(0, 0, 0, 0.2);
-    padding: 0.5rem;
-    border-radius: 4px;
+    font-size: 12px;
+    color: var(--text-secondary);
+    margin: 12px 0 20px;
+    font-family: var(--font-mono);
+    background: var(--bg-app);
+    border: 1px solid var(--border-subtle);
+    padding: 10px 12px;
+    border-radius: var(--radius-sm);
+    word-break: break-all;
 }
 
 .modal-actions {
     display: flex;
     justify-content: flex-end;
-    gap: 1rem;
+    gap: 10px;
+}
+
+.btn-primary,
+.btn-secondary {
+    min-height: var(--tap-target);
+    padding: 10px 16px;
+    border-radius: var(--radius-md);
+    font-weight: 600;
+    font-size: 14px;
+    transition: background var(--dur-fast) var(--ease),
+                transform var(--dur-fast) var(--ease),
+                border-color var(--dur-fast) var(--ease);
 }
 
 .btn-primary {
-    background: #fff;
-    color: #000;
+    background: var(--accent);
+    color: #fff;
     border: none;
-    padding: 0.5rem 1rem;
-    border-radius: 6px;
-    cursor: pointer;
-    font-weight: 500;
 }
 
-.btn-primary:hover {
-    background: #e5e5e5;
-}
+.btn-primary:hover { background: var(--accent-hover); }
+.btn-primary:active { transform: translateY(1px); }
 
 .btn-secondary {
     background: transparent;
-    color: #d4d4d4;
-    border: 1px solid #525252;
-    padding: 0.5rem 1rem;
-    border-radius: 6px;
-    cursor: pointer;
+    color: var(--text-primary);
+    border: 1px solid var(--border-default);
+    font-weight: 500;
 }
 
 .btn-secondary:hover {
-    border-color: #d4d4d4;
-    color: #fff;
+    background: var(--bg-surface-3);
+    border-color: var(--border-strong);
 }
 
-/* Responsive Styles */
-@media (max-width: 768px) {
-    .modal-content {
-        width: 90%;
-        max-width: 400px;
-        padding: 1.5rem;
-    }
-
-    .modal-actions {
-        flex-direction: column;
-    }
-
-    .btn-primary,
-    .btn-secondary {
-        width: 100%;
-    }
-}
-
+/* ── Phones: bottom-sheet ───────────────────────────────── */
 @media (max-width: 480px) {
+    .modal-overlay {
+        padding: 0;
+        align-items: flex-end;
+    }
     .modal-content {
-        padding: 1rem;
+        max-width: 100%;
+        border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+        padding: 20px 18px 24px;
+        padding-bottom: max(24px, env(safe-area-inset-bottom));
+        animation: slide-up var(--dur-base) var(--ease);
     }
-
-    h3 {
-        font-size: 1.1rem;
+    @keyframes slide-up {
+        from { transform: translateY(20px); opacity: 0; }
     }
-
-    p {
-        font-size: 0.9rem;
-    }
-
-    .destination-text {
-        font-size: 0.8rem;
-    }
+    .modal-actions { flex-direction: column-reverse; }
+    .btn-primary, .btn-secondary { width: 100%; }
 }
 </style>

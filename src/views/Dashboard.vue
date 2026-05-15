@@ -4,149 +4,241 @@
             🔔 MFA <b>{{ formattedGrace }}</b> dan majburiy.
             <router-link to="/mfa/setup">Sozlash</router-link>
         </div>
+
         <div class="dashboard-layout">
-        <aside class="sidebar" v-if="showSidebar">
-            <div class="user-info" v-if="user">
-                <img :src="user.avatar_url" alt="Avatar" class="avatar" />
-                <div class="user-details">
-                    <span class="user-name">{{ user.name }}</span>
-                    <span class="user-email">{{ user.email }}</span>
-                </div>
-            </div>
-            <div class="folder-list">
-                <div class="folder-item" :class="{ active: !selectedFolder, 'drag-hover': dragOverFolderId === 'all' }"
-                    @click="selectFolder(null)" @dragover.prevent @dragenter="dragOverFolderId = 'all'"
-                    @dragleave="dragOverFolderId === 'all' ? dragOverFolderId = null : null"
-                    @drop="handleDrop($event, null)" title="All Servers">
-                    <span class="folder-icon">📁</span>
-                    <span class="folder-name">All Servers</span>
-                </div>
-                <div v-for="folder in folders" :key="folder.id" class="folder-item"
-                    :class="{ active: selectedFolder === folder.id, 'drag-hover': dragOverFolderId === folder.id }"
-                    @click="selectFolder(folder.id)" @dragover.prevent @dragenter="dragOverFolderId = folder.id"
-                    @dragleave="dragOverFolderId === folder.id ? dragOverFolderId = null : null"
-                    @drop="handleDrop($event, folder.id)" :title="folder.name">
-                    <span class="folder-icon">📂</span>
-                    <span class="folder-name">{{ folder.name }}</span>
-                    <button class="delete-folder-btn" @click.stop="deleteFolder(folder.id)">×</button>
-                </div>
-            </div>
+            <!-- Mobile drawer backdrop. Only visible on small screens when the drawer is open. -->
+            <div
+                class="sidebar-backdrop"
+                :class="{ 'is-visible': showSidebar }"
+                @click="showSidebar = false"
+                aria-hidden="true"
+            ></div>
 
-            <button class="add-folder-btn" @click="createFolder">
-                <span>+ New Folder</span>
-            </button>
+            <aside class="sidebar" :class="{ 'is-open': showSidebar }" aria-label="Folders">
+                <div class="sidebar-head">
+                    <div class="user-info" v-if="user">
+                        <img :src="user.avatar_url" alt="" class="avatar" />
+                        <div class="user-details">
+                            <span class="user-name">{{ user.name }}</span>
+                            <span class="user-email">{{ user.email }}</span>
+                        </div>
+                    </div>
+                    <button
+                        type="button"
+                        class="sidebar-close"
+                        @click="showSidebar = false"
+                        aria-label="Close sidebar"
+                    >×</button>
+                </div>
 
-            <div class="sidebar-footer">
-                <router-link to="/mfa/settings" class="btn-secondary mfa-btn">
-                    🔐 MFA
-                </router-link>
-                <button @click="logout" class="btn-secondary logout-btn">
-                    <span>Logout</span>
+                <div class="folder-list">
+                    <div
+                        class="folder-item"
+                        :class="{ active: !selectedFolder, 'drag-hover': dragOverFolderId === 'all' }"
+                        @click="selectFolder(null)"
+                        @dragover.prevent
+                        @dragenter="dragOverFolderId = 'all'"
+                        @dragleave="dragOverFolderId === 'all' ? dragOverFolderId = null : null"
+                        @drop="handleDrop($event, null)"
+                        title="All Servers"
+                    >
+                        <span class="folder-icon" aria-hidden="true">📁</span>
+                        <span class="folder-name">All Servers</span>
+                    </div>
+                    <div
+                        v-for="folder in folders"
+                        :key="folder.id"
+                        class="folder-item"
+                        :class="{ active: selectedFolder === folder.id, 'drag-hover': dragOverFolderId === folder.id }"
+                        @click="selectFolder(folder.id)"
+                        @dragover.prevent
+                        @dragenter="dragOverFolderId = folder.id"
+                        @dragleave="dragOverFolderId === folder.id ? dragOverFolderId = null : null"
+                        @drop="handleDrop($event, folder.id)"
+                        :title="folder.name"
+                    >
+                        <span class="folder-icon" aria-hidden="true">📂</span>
+                        <span class="folder-name">{{ folder.name }}</span>
+                        <button class="delete-folder-btn" @click.stop="deleteFolder(folder.id)" aria-label="Delete folder">×</button>
+                    </div>
+                </div>
+
+                <button class="add-folder-btn" @click="createFolder">
+                    <span>+ New Folder</span>
                 </button>
-            </div>
-        </aside>
 
-        <main class="dashboard-content" :class="{ 'workspace-mode': panelStore.panels.length > 0 }">
-            <header v-if="panelStore.panels.length === 0">
-                <div class="header-title">
-                    <h2>{{ currentFolderName }}</h2>
+                <div class="sidebar-footer">
+                    <router-link to="/mfa/settings" class="btn-secondary mfa-btn">
+                        🔐 MFA
+                    </router-link>
+                    <button @click="logout" class="btn-secondary logout-btn">
+                        <span>Logout</span>
+                    </button>
                 </div>
-                <div class="actions">
-                    <button @click="openModal" class="btn-primary">+ Add Server</button>
-                </div>
-            </header>
+            </aside>
 
-            <div class="servers-section" v-if="panelStore.panels.length === 0">
-                <div class="servers-grid">
-                    <div v-for="server in filteredServers" :key="server.id" class="server-card" draggable="true"
-                        @dragstart="handleDragStart(server, $event)">
-                        <div class="card-header">
-                            <h3>{{ server.name }}</h3>
-                            <div class="card-actions">
-                                <button @click="editServer(server)" class="icon-btn" title="Edit">✎</button>
-                                <button @click="deleteServer(server.id)" class="icon-btn delete"
-                                    title="Delete">🗑</button>
+            <main class="dashboard-content" :class="{ 'workspace-mode': panelStore.panels.length > 0 }">
+                <!-- Topbar: hamburger + title + action. Shown on mobile, in dashboard mode only.
+                     Desktop has its own header below. -->
+                <div class="topbar">
+                    <button
+                        type="button"
+                        class="hamburger"
+                        @click="showSidebar = !showSidebar"
+                        :aria-expanded="showSidebar"
+                        aria-label="Toggle sidebar"
+                    >
+                        <span class="hamburger-bar"></span>
+                        <span class="hamburger-bar"></span>
+                        <span class="hamburger-bar"></span>
+                    </button>
+                    <div class="topbar-title">{{ panelStore.panels.length === 0 ? currentFolderName : 'Workspace' }}</div>
+                    <button
+                        v-if="panelStore.panels.length === 0"
+                        type="button"
+                        class="topbar-action"
+                        @click="openModal"
+                        aria-label="Add server"
+                    >+</button>
+                    <button
+                        v-else
+                        type="button"
+                        class="topbar-action"
+                        @click="panelStore.panels = []; showSidebar = true;"
+                        aria-label="Back to servers"
+                    >←</button>
+                </div>
+
+                <header v-if="panelStore.panels.length === 0" class="desktop-header">
+                    <div class="header-title">
+                        <h2>{{ currentFolderName }}</h2>
+                    </div>
+                    <div class="actions">
+                        <button @click="openModal" class="btn-primary">+ Add Server</button>
+                    </div>
+                </header>
+
+                <div class="servers-section" v-if="panelStore.panels.length === 0">
+                    <div class="servers-grid">
+                        <div
+                            v-for="server in filteredServers"
+                            :key="server.id"
+                            class="server-card"
+                            draggable="true"
+                            @dragstart="handleDragStart(server, $event)"
+                        >
+                            <div class="card-header">
+                                <h3>{{ server.name }}</h3>
+                                <div class="card-actions">
+                                    <button @click="editServer(server)" class="icon-btn" title="Edit" aria-label="Edit">✎</button>
+                                    <button @click="deleteServer(server.id)" class="icon-btn delete" title="Delete" aria-label="Delete">🗑</button>
+                                </div>
+                            </div>
+                            <div class="card-body">
+                                <p><span class="card-label">Host</span><span class="card-value">{{ server.host }}</span></p>
+                                <p><span class="card-label">User</span><span class="card-value">{{ server.username }}</span></p>
+                            </div>
+                            <div class="card-footer">
+                                <button
+                                    @click="addPanel('terminal', server.id, server.name, server.username)"
+                                    class="btn-connect"
+                                >Terminal</button>
+                                <button
+                                    @click="addPanel('sftp', server.id, server.name, server.username)"
+                                    class="btn-files"
+                                    title="File Manager"
+                                    aria-label="Open file manager"
+                                >📂</button>
                             </div>
                         </div>
-                        <div class="card-body">
-                            <p><strong>Host:</strong> {{ server.host }}</p>
-                            <p><strong>User:</strong> {{ server.username }}</p>
-                        </div>
-                        <div class="card-footer">
-                            <button @click="addPanel('terminal', server.id, server.name, server.username)"
-                                class="btn-connect">Terminal</button>
-                            <button @click="addPanel('sftp', server.id, server.name, server.username)" class="btn-files"
-                                title="File Manager">📂</button>
-                        </div>
-                    </div>
-                </div>
-            </div>
 
-            <!-- Active Panels Grid -->
-            <div class="panels-grid" v-else>
-                <div class="servers-mini-bar">
-                    <button @click="panelStore.panels = []; showSidebar = true;" class="btn-secondary back-to-servers">←
-                        Servers</button>
-                    <div class="mini-server-list">
-                        <div v-for="server in filteredServers" :key="server.id" class="mini-server-item">
-                            <span>{{ server.name }}</span>
-                            <button @click="addPanel('terminal', server.id, server.name, server.username)"
-                                title="Terminal">💻</button>
-                            <button @click="addPanel('sftp', server.id, server.name, server.username)"
-                                title="SFTP">📂</button>
+                        <div v-if="filteredServers.length === 0" class="empty-state">
+                            <p>Hozircha hech qanday server qo'shilmagan.</p>
+                            <button @click="openModal" class="btn-primary">+ Birinchi serverni qo'shing</button>
                         </div>
                     </div>
                 </div>
 
-                <div class="panels-container" ref="panelsContainer">
-                    <template v-for="(panel, index) in panelStore.panels" :key="panel.id">
-                        <PanelContainer :panel="panel" @close="removePanel" @open-file="handleOpenFile"
-                            @download-file="handleDownloadFile" @download-zip="handleDownloadZip"
-                            @drop-file="handleCrossPaneDrop" class="panel-wrapper"
-                            :style="{ flex: `0 0 ${panelSizes[index]}%` }" />
-                        <div v-if="index < panelStore.panels.length - 1" class="panel-resizer"
-                            @mousedown="startResize(index, $event)"></div>
-                    </template>
+                <!-- Active panels -->
+                <div class="panels-grid" v-else>
+                    <div class="servers-mini-bar">
+                        <button
+                            @click="panelStore.panels = []; showSidebar = true;"
+                            class="btn-secondary back-to-servers"
+                        >← Servers</button>
+                        <div class="mini-server-list">
+                            <div v-for="server in filteredServers" :key="server.id" class="mini-server-item">
+                                <span>{{ server.name }}</span>
+                                <button @click="addPanel('terminal', server.id, server.name, server.username)" title="Terminal" aria-label="Terminal">💻</button>
+                                <button @click="addPanel('sftp', server.id, server.name, server.username)" title="SFTP" aria-label="SFTP">📂</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="panels-container" ref="panelsContainer">
+                        <template v-for="(panel, index) in panelStore.panels" :key="panel.id">
+                            <PanelContainer
+                                :panel="panel"
+                                @close="removePanel"
+                                @open-file="handleOpenFile"
+                                @download-file="handleDownloadFile"
+                                @download-zip="handleDownloadZip"
+                                @drop-file="handleCrossPaneDrop"
+                                class="panel-wrapper"
+                                :style="!isStackedPanels ? { flex: `0 0 ${panelSizes[index]}%` } : null"
+                            />
+                            <div
+                                v-if="!isStackedPanels && index < panelStore.panels.length - 1"
+                                class="panel-resizer"
+                                @mousedown="startResize(index, $event)"
+                            ></div>
+                        </template>
+                    </div>
+                </div>
+            </main>
+        </div>
+
+        <ServerModal :isOpen="isModalOpen" :server="editingServer" :folders="folders" @close="closeModal" @save="saveServer" />
+
+        <!-- Editor Modal -->
+        <div v-if="editorOpen" class="modal-overlay">
+            <div class="modal-content editor-modal">
+                <div class="editor-head">
+                    <h2>Edit File: <span class="filename">{{ editingFile }}</span></h2>
+                    <button @click="closeEditor" class="icon-btn-close" aria-label="Close">×</button>
+                </div>
+                <textarea v-model="fileContent" class="editor-textarea"></textarea>
+                <div class="modal-actions">
+                    <button @click="closeEditor" class="btn-secondary">Cancel</button>
+                    <button @click="saveFile" class="btn-primary">Save</button>
                 </div>
             </div>
-        </main>
-    </div>
+        </div>
 
-    <ServerModal :isOpen="isModalOpen" :server="editingServer" :folders="folders" @close="closeModal"
-        @save="saveServer" />
-
-    <!-- Editor Modal (Global for all panels) -->
-    <div v-if="editorOpen" class="modal-overlay">
-        <div class="modal-content editor-modal">
-            <h2>Edit File: {{ editingFile }}</h2>
-            <textarea v-model="fileContent" class="editor-textarea"></textarea>
-            <div class="modal-actions">
-                <button @click="closeEditor" class="btn-secondary">Cancel</button>
-                <button @click="saveFile" class="btn-primary">Save</button>
+        <!-- Image Viewer Modal -->
+        <div v-if="imageViewerOpen" class="modal-overlay" @click.self="closeImageViewer">
+            <div class="modal-content image-modal">
+                <div class="image-header">
+                    <h2 class="filename">{{ editingFile }}</h2>
+                    <button @click="closeImageViewer" class="icon-btn-close" aria-label="Close">×</button>
+                </div>
+                <div class="image-container">
+                    <img :src="imageSrc" alt="Preview" />
+                </div>
             </div>
         </div>
-    </div>
 
-    <!-- Image Viewer Modal (Global for all panels) -->
-    <div v-if="imageViewerOpen" class="modal-overlay" @click.self="closeImageViewer">
-        <div class="modal-content image-modal">
-            <div class="image-header">
-                <h2>{{ editingFile }}</h2>
-                <button @click="closeImageViewer" class="icon-btn-close">×</button>
-            </div>
-            <div class="image-container">
-                <img :src="imageSrc" alt="Preview" />
-            </div>
-        </div>
-    </div>
-
-    <TransferChoiceModal :isOpen="showTransferModal" :fileName="transferData?.fileName || ''"
-        :destPath="transferData?.destPath || ''" @action="handleTransferAction" />
+        <TransferChoiceModal
+            :isOpen="showTransferModal"
+            :fileName="transferData?.fileName || ''"
+            :destPath="transferData?.destPath || ''"
+            @action="handleTransferAction"
+        />
     </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch } from 'vue';
+import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import api from '../api';
 import { useAuthStore } from '../stores/auth';
@@ -162,9 +254,6 @@ const mfaStore = useMFAStore();
 const panelStore = usePanelStore();
 const user = computed(() => authStore.user);
 
-// Grace-period banner: shown only when the server has told us via the
-// X-MFA-Grace-Until response header that the user hasn't enrolled yet
-// but is still allowed through.
 const showGraceBanner = computed(
     () => !!mfaStore.graceUntil && !mfaStore.enrolled
 );
@@ -183,7 +272,19 @@ const selectedFolder = ref(null);
 const isModalOpen = ref(false);
 const editingServer = ref(null);
 const dragOverFolderId = ref(null);
-const showSidebar = ref(true);
+
+// Sidebar visibility — default open on desktop, closed on mobile. We don't
+// reactively re-evaluate after mount: rotation between portrait/landscape on
+// a tablet shouldn't slam the drawer open/closed under the user's finger.
+const showSidebar = ref(
+    typeof window !== 'undefined' ? window.innerWidth >= 1024 : true
+);
+
+// Panels stack vertically on small screens (mouse resize is meaningless on
+// touch). Recomputed on resize.
+const viewportWidth = ref(typeof window !== 'undefined' ? window.innerWidth : 1280);
+const isStackedPanels = computed(() => viewportWidth.value < 768);
+const updateViewportWidth = () => { viewportWidth.value = window.innerWidth; };
 
 // Editor State (Global)
 const editorOpen = ref(false);
@@ -200,13 +301,14 @@ const imageSrc = ref('');
 const showTransferModal = ref(false);
 const transferData = ref(null);
 
-// Panel Resizing State
+// Panel Resizing State (desktop only)
 const panelsContainer = ref(null);
 const panelSizes = ref([]);
 const isResizing = ref(false);
 const currentResizeIndex = ref(-1);
 
 const startResize = (index, event) => {
+    if (isStackedPanels.value) return;
     isResizing.value = true;
     currentResizeIndex.value = index;
     document.addEventListener('mousemove', handleResize);
@@ -221,23 +323,16 @@ const handleResize = (event) => {
     const containerRect = panelsContainer.value.getBoundingClientRect();
     const containerWidth = containerRect.width;
     const mouseX = event.clientX - containerRect.left;
-
-    // Convert mouse position to percentage
     const mousePercent = (mouseX / containerWidth) * 100;
 
-    // Calculate cumulative width of panels BEFORE the one being resized
     let previousWidth = 0;
     for (let i = 0; i < currentResizeIndex.value; i++) {
         previousWidth += panelSizes.value[i];
     }
 
-    // New width for panel[index]
     let newWidth = mousePercent - previousWidth;
-
-    // Min width constraint (e.g., 10%)
     if (newWidth < 10) newWidth = 10;
 
-    // The next panel (index+1) must also have min width.
     const nextPanelIndex = currentResizeIndex.value + 1;
     const combinedWidth = panelSizes.value[currentResizeIndex.value] + panelSizes.value[nextPanelIndex];
 
@@ -291,9 +386,7 @@ const currentFolderName = computed(() => {
     return folder ? folder.name : 'Unknown Folder';
 });
 
-// Watch panels to reset sizes and auto-collapse sidebar
 watch(() => panelStore.panels, (newPanels, oldPanels) => {
-    // Auto-collapse sidebar when entering workspace mode (first panel added)
     if (newPanels.length > 0 && (!oldPanels || oldPanels.length === 0)) {
         showSidebar.value = false;
     }
@@ -302,7 +395,6 @@ watch(() => panelStore.panels, (newPanels, oldPanels) => {
         panelSizes.value = [];
         return;
     }
-    // If length changed, reset to equal distribution
     if (panelSizes.value.length !== newPanels.length) {
         const width = 100 / newPanels.length;
         panelSizes.value = newPanels.map(() => width);
@@ -316,6 +408,11 @@ const filteredServers = computed(() => {
 
 const selectFolder = (id) => {
     selectedFolder.value = id;
+    // On small screens the sidebar is an overlay drawer — close it once a
+    // folder is picked so the user sees the result without an extra tap.
+    if (window.innerWidth < 1024) {
+        showSidebar.value = false;
+    }
 };
 
 const createFolder = async () => {
@@ -334,7 +431,7 @@ const deleteFolder = async (id) => {
     try {
         await api.delete(`/folders?id=${id}`);
         fetchFolders();
-        fetchServers(); // Refresh servers as their folder_id might change
+        fetchServers();
         if (selectedFolder.value === id) selectedFolder.value = null;
     } catch (err) {
         alert(err.message);
@@ -397,15 +494,10 @@ const handleDrop = async (event, folderId) => {
     const server = servers.value.find(s => s.id == serverId);
     if (!server) return;
 
-    // Optimistic update
     const originalFolderId = server.folder_id;
     server.folder_id = folderId;
 
     try {
-        // We need to send the FULL server object to update it,
-        // but we only want to change the folder_id.
-        // The backend UpdateServer expects all fields.
-        // Let's construct the payload.
         const payload = {
             name: server.name,
             host: server.host,
@@ -413,19 +505,16 @@ const handleDrop = async (event, folderId) => {
             username: server.username,
             auth_type: server.auth_type,
             folder_id: folderId,
-            secret: "" // Empty secret to keep existing
+            secret: ""
         };
 
         await api.put(`/servers?id=${serverId}`, payload);
-        // Success toast could go here
-        // alert("Moved successfully"); // User requested feedback
     } catch (err) {
-        server.folder_id = originalFolderId; // Revert
+        server.folder_id = originalFolderId;
         alert("Failed to move server: " + err.message);
     }
 };
 
-// Panel Management
 const addPanel = (type, serverId, serverName, username) => {
     showSidebar.value = false;
     panelStore.addPanel(type, serverId.toString(), serverName, username);
@@ -434,7 +523,7 @@ const addPanel = (type, serverId, serverName, username) => {
 const removePanel = (id) => {
     panelStore.removePanel(id);
     if (panelStore.panels.length === 0) {
-        showSidebar.value = true;
+        showSidebar.value = window.innerWidth >= 1024;
     }
 };
 
@@ -446,25 +535,19 @@ const downloadBlob = (blob, fileName) => {
     document.body.appendChild(link);
     link.click();
     link.remove();
-    // revoke async to avoid breaking the download in some browsers
     setTimeout(() => {
         try {
             window.URL.revokeObjectURL(url);
-        } catch (e) {
-            // ignore
-        }
+        } catch (e) { /* ignore */ }
     }, 0);
 };
 
-// File Operations (Global handlers)
 const handleOpenFile = async ({ serverId, name, path, size }) => {
     const fullPath = (path === '/' ? '' : path) + '/' + name;
-    const MAX_PREVIEW_BYTES = 2 * 1024 * 1024; // 2MB
+    const MAX_PREVIEW_BYTES = 2 * 1024 * 1024;
 
     const downloadRelUrl = `/sftp/download?server_id=${serverId}&path=${encodeURIComponent(fullPath)}`;
 
-    // Rely on WS-provided size for the memory guard.
-    // If size is missing, avoid reading the file into memory and just download.
     if (!Number.isFinite(size)) {
         handleDownloadFile({ serverId, name, path });
         return;
@@ -481,11 +564,7 @@ const handleOpenFile = async ({ serverId, name, path, size }) => {
 
         if (contentType.startsWith('image/')) {
             if (imageSrc.value) {
-                try {
-                    window.URL.revokeObjectURL(imageSrc.value);
-                } catch (e) {
-                    // ignore
-                }
+                try { window.URL.revokeObjectURL(imageSrc.value); } catch (e) { /* ignore */ }
             }
             imageSrc.value = window.URL.createObjectURL(res.data);
             editingFile.value = name;
@@ -504,7 +583,6 @@ const handleOpenFile = async ({ serverId, name, path, size }) => {
             return;
         }
 
-        // Unknown/binary (but small): just download the blob we already have.
         downloadBlob(res.data, name);
     } catch (err) {
         alert('Failed to open file: ' + err.message);
@@ -523,11 +601,7 @@ const closeEditor = () => {
 const closeImageViewer = () => {
     imageViewerOpen.value = false;
     if (imageSrc.value) {
-        try {
-            window.URL.revokeObjectURL(imageSrc.value);
-        } catch (e) {
-            // ignore
-        }
+        try { window.URL.revokeObjectURL(imageSrc.value); } catch (e) { /* ignore */ }
     }
     imageSrc.value = '';
     editingFile.value = '';
@@ -550,7 +624,6 @@ const saveFile = async () => {
 };
 
 const handleDownloadFile = (data) => {
-    // Implement download logic
     const { serverId, name, path, cb } = data;
     const fullPath = (path === '/' ? '' : path) + '/' + name;
     const url = `/sftp/download?server_id=${serverId}&path=${encodeURIComponent(fullPath)}`;
@@ -566,9 +639,7 @@ const handleDownloadFile = (data) => {
             link.remove();
         })
         .catch(err => console.error(err))
-        .finally(() => {
-            if (cb) cb();
-        });
+        .finally(() => { if (cb) cb(); });
 };
 
 const handleDownloadZip = (data) => {
@@ -587,9 +658,7 @@ const handleDownloadZip = (data) => {
             link.remove();
         })
         .catch(err => console.error(err))
-        .finally(() => {
-            if (cb) cb();
-        });
+        .finally(() => { if (cb) cb(); });
 };
 
 const handleCrossPaneDrop = async (data) => {
@@ -607,7 +676,6 @@ const handleCrossPaneDrop = async (data) => {
         if (!confirm(`Transfer ${fileName} to destination?`)) return;
 
         try {
-            // Show some loading indication if possible, or just wait
             await api.post('/transfer', {
                 source_server_id: parseInt(sourceServerId),
                 source_path: srcFull,
@@ -619,7 +687,6 @@ const handleCrossPaneDrop = async (data) => {
             alert('Transfer failed: ' + (err.response?.data || err.message));
         }
     } else {
-        // Same server logic (Move/Copy/Cancel)
         transferData.value = {
             sourceServerId,
             srcPath: srcFull,
@@ -664,610 +731,806 @@ onMounted(() => {
     fetchUser();
     fetchServers();
     fetchFolders();
+    window.addEventListener('resize', updateViewportWidth);
+});
+
+onBeforeUnmount(() => {
+    window.removeEventListener('resize', updateViewportWidth);
+    document.removeEventListener('mousemove', handleResize);
+    document.removeEventListener('mouseup', stopResize);
 });
 </script>
 
 <style scoped>
-/* Column wrapper so the banner consumes only its content height and the
-   sidebar+main row claims the rest. The previous flex-wrap on
-   .dashboard-layout caused align-content: stretch to grow the banner
-   row to nearly half the viewport. */
+/* ============================================================
+ * Dashboard — desktop and mobile (drawer pattern)
+ * ============================================================ */
+
 .dashboard-wrapper {
     display: flex;
     flex-direction: column;
-    height: 100vh;
-    background: #383838;
+    height: 100dvh;
+    background: var(--bg-app);
+    color: var(--text-primary);
+    font-family: var(--font-sans);
 }
 
 .dashboard-layout {
     display: flex;
     flex: 1 1 auto;
     min-height: 0;
-    background: #383838;
-    color: #e2e8f0;
-    font-family: 'Inter', sans-serif;
+    position: relative;
 }
 
+/* ── Grace banner ───────────────────────────────────────── */
 .grace-banner {
     flex: 0 0 auto;
-    background: #422006;
+    background: rgba(245, 158, 11, 0.12);
     color: #fde68a;
-    padding: 4px 14px;
-    font-size: 0.78rem;
-    line-height: 1.3;
-    border-bottom: 1px solid #78350f;
+    border-bottom: 1px solid rgba(245, 158, 11, 0.35);
+    padding: 8px 16px;
+    font-size: 13px;
+    line-height: 1.4;
 }
 
 .grace-banner a {
     color: #fde68a;
-    margin-left: 6px;
     text-decoration: underline;
+    margin-left: 4px;
 }
 
-.mfa-btn {
-    display: block;
-    text-align: center;
-    text-decoration: none;
-    padding: 8px 12px;
-    margin-bottom: 8px;
-    background: #383838;
-    color: #e2e8f0;
-    border-radius: 6px;
-    border: 1px solid #555;
-}
-.mfa-btn:hover {
-    background: #444;
-}
-
+/* ── Sidebar (desktop: inline, mobile: drawer) ──────────── */
 .sidebar {
     width: 280px;
-    background: #383838;
-    border-right: 1px solid #636363;
-    padding: 1.5rem;
+    flex-shrink: 0;
+    background: var(--bg-surface);
+    border-right: 1px solid var(--border-subtle);
+    padding: 16px;
     display: flex;
     flex-direction: column;
-    box-shadow: 4px 0 24px rgba(0, 0, 0, 0.2);
-    z-index: 10;
-    transition: width 0.3s ease, padding 0.3s ease;
+    gap: 12px;
     overflow-y: auto;
     overflow-x: hidden;
-    flex-shrink: 0;
+    transition: transform var(--dur-base) var(--ease);
+    z-index: var(--z-drawer);
 }
 
-.sidebar.collapsed {
-    width: 60px;
-    padding: 1rem 0.5rem;
-}
-
-.sidebar-header-controls {
+.sidebar-head {
     display: flex;
-    justify-content: flex-end;
-    margin-bottom: 1rem;
-}
-
-.toggle-btn {
-    color: #cbd5e1;
-    font-size: 1.2rem;
-    padding: 0.2rem 0.5rem;
-}
-
-.toggle-btn:hover {
-    color: #fff;
-    background: rgba(255, 255, 255, 0.1);
+    align-items: center;
+    gap: 8px;
 }
 
 .user-info {
+    flex: 1 1 auto;
     display: flex;
     align-items: center;
-    gap: 0.5rem;
-    background: #383838;
-    padding: 0.5rem 0.5rem;
-    border-radius: 12px;
-    border: 1px solid #525252;
-    margin-bottom: 1rem;
+    gap: 10px;
+    background: var(--bg-surface-2);
+    border: 1px solid var(--border-subtle);
+    padding: 8px 10px;
+    border-radius: var(--radius-md);
+    min-width: 0;
 }
 
 .avatar {
-    width: 42px;
-    height: 42px;
+    width: 36px;
+    height: 36px;
     border-radius: 50%;
     object-fit: cover;
-    border: 2px solid #737373;
+    border: 1px solid var(--border-default);
+    flex-shrink: 0;
 }
 
 .user-details {
     display: flex;
     flex-direction: column;
-    overflow: hidden;
+    min-width: 0;
 }
 
 .user-name {
     font-weight: 600;
-    color: #fff;
-    font-size: 0.95rem;
-    white-space: nowrap;
-}
-
-.user-email {
-    font-size: 0.8rem;
-    color: #9ca3af;
-    white-space: nowrap;
-}
-
-.folder-list {
-    flex-grow: 1;
-    overflow-y: auto;
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-}
-
-.folder-item {
-    padding: 0.75rem 1rem;
-    cursor: pointer;
-    border-radius: 8px;
-    color: #cbd5e1;
-    display: flex;
-    align-items: center;
-    transition: all 0.2s;
-    font-size: 0.95rem;
-}
-
-.folder-item:hover {
-    background: rgba(255, 255, 255, 0.1);
-    color: #fff;
-}
-
-.folder-item.active {
-    background: #525252;
-    color: #fff;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
-    border: 1px solid #737373;
-}
-
-.folder-item.drag-hover {
-    background: rgba(255, 255, 255, 0.1);
-    border: 1px dashed #a3a3a3;
-}
-
-.folder-icon {
-    margin-right: 0.75rem;
-    font-size: 1.1rem;
-}
-
-.folder-name {
-    flex-grow: 1;
+    color: var(--text-primary);
+    font-size: 13px;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
 }
 
-.delete-folder-btn {
-    background: transparent;
-    border: none;
-    color: #9ca3af;
-    cursor: pointer;
-    font-size: 1.2rem;
-    padding: 0 4px;
-    opacity: 0;
-    transition: opacity 0.2s;
+.user-email {
+    font-size: 11px;
+    color: var(--text-tertiary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
-.folder-item:hover .delete-folder-btn {
+.sidebar-close {
+    display: none;
+    width: 36px;
+    height: 36px;
+    place-items: center;
+    border-radius: var(--radius-sm);
+    color: var(--text-secondary);
+    font-size: 22px;
+    line-height: 1;
+    flex-shrink: 0;
+    transition: background var(--dur-fast) var(--ease);
+}
+
+.sidebar-close:hover {
+    background: var(--bg-surface-3);
+    color: var(--text-primary);
+}
+
+.folder-list {
+    flex: 1 1 auto;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-height: 0;
+}
+
+.folder-item {
+    padding: 10px 12px;
+    border-radius: var(--radius-md);
+    color: var(--text-secondary);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    transition: background var(--dur-fast) var(--ease),
+                color var(--dur-fast) var(--ease);
+    font-size: 14px;
+    min-height: 40px;
+    cursor: pointer;
+}
+
+.folder-item:hover {
+    background: var(--bg-surface-2);
+    color: var(--text-primary);
+}
+
+.folder-item.active {
+    background: var(--accent-soft);
+    color: var(--accent);
+    border: 1px solid var(--accent-ring);
+}
+
+.folder-item.drag-hover {
+    background: var(--bg-surface-3);
+    outline: 1px dashed var(--accent);
+    outline-offset: -2px;
+}
+
+.folder-icon { font-size: 16px; flex-shrink: 0; }
+
+.folder-name {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.delete-folder-btn {
+    width: 24px;
+    height: 24px;
+    display: grid;
+    place-items: center;
+    color: var(--text-tertiary);
+    font-size: 16px;
+    border-radius: var(--radius-sm);
+    opacity: 0;
+    transition: opacity var(--dur-fast) var(--ease),
+                background var(--dur-fast) var(--ease),
+                color var(--dur-fast) var(--ease);
+    flex-shrink: 0;
+}
+
+.folder-item:hover .delete-folder-btn,
+.delete-folder-btn:focus-visible {
     opacity: 1;
 }
 
 .delete-folder-btn:hover {
-    color: #ef4444;
+    background: var(--danger-soft);
+    color: var(--danger-hover);
 }
 
 .add-folder-btn {
-    margin-top: 1.5rem;
-    padding: 0.75rem;
+    padding: 10px 12px;
     background: transparent;
-    border: 1px dashed #737373;
-    color: #cbd5e1;
-    border-radius: 8px;
-    cursor: pointer;
+    border: 1px dashed var(--border-default);
+    color: var(--text-secondary);
+    border-radius: var(--radius-md);
     width: 100%;
-    transition: all 0.2s;
-    font-size: 0.9rem;
+    font-size: 13px;
+    min-height: 40px;
+    transition: border-color var(--dur-fast) var(--ease),
+                color var(--dur-fast) var(--ease),
+                background var(--dur-fast) var(--ease);
 }
 
 .add-folder-btn:hover {
-    border-color: #fff;
-    color: #fff;
-    background: rgba(255, 255, 255, 0.05);
+    border-color: var(--accent);
+    color: var(--accent);
+    background: var(--accent-soft);
 }
 
 .sidebar-footer {
-    margin-top: 1rem;
-}
-
-.logout-btn {
-    font-size: 0.9rem;
-    width: 100%;
-}
-
-.dashboard-content {
-    flex-grow: 1;
-    padding: 2rem 3rem;
-    overflow-y: auto;
-    background: radial-gradient(circle at top right, #4b4b4b 0%, #383838 100%);
     display: flex;
     flex-direction: column;
-    transition: padding 0.3s ease;
+    gap: 6px;
+    margin-top: auto;
+    padding-top: 12px;
+    border-top: 1px solid var(--border-subtle);
+}
+
+.mfa-btn,
+.logout-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    min-height: 40px;
+    padding: 10px 12px;
+    border-radius: var(--radius-md);
+    font-size: 13px;
+    font-weight: 500;
+    text-decoration: none;
+    color: var(--text-primary);
+    background: var(--bg-surface-2);
+    border: 1px solid var(--border-default);
+    transition: background var(--dur-fast) var(--ease),
+                border-color var(--dur-fast) var(--ease);
+}
+
+.mfa-btn:hover,
+.logout-btn:hover {
+    background: var(--bg-surface-3);
+    border-color: var(--border-strong);
+}
+
+/* ── Sidebar backdrop (mobile only) ─────────────────────── */
+.sidebar-backdrop {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: var(--bg-overlay);
+    z-index: var(--z-overlay);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity var(--dur-base) var(--ease);
+}
+
+/* ── Main content ───────────────────────────────────────── */
+.dashboard-content {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    background: var(--bg-app);
 }
 
 .dashboard-content.workspace-mode {
-    padding: 0;
-    background: #1e1e1e;
+    overflow: hidden;
 }
 
-header {
-    width: 100%;
+/* ── Topbar (mobile-only by default) ────────────────────── */
+.topbar {
+    display: none;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 12px;
+    padding-top: max(10px, env(safe-area-inset-top));
+    background: var(--bg-surface);
+    border-bottom: 1px solid var(--border-subtle);
+    position: sticky;
+    top: 0;
+    z-index: 20;
+}
+
+.hamburger {
+    width: 40px;
+    height: 40px;
+    display: grid;
+    place-items: center;
+    border-radius: var(--radius-sm);
+    color: var(--text-primary);
+    flex-shrink: 0;
+    transition: background var(--dur-fast) var(--ease);
+}
+
+.hamburger:hover { background: var(--bg-surface-3); }
+
+.hamburger-bar {
+    display: block;
+    width: 18px;
+    height: 2px;
+    background: currentColor;
+    border-radius: 2px;
+    margin: 3px 0;
+}
+
+.topbar-title {
+    flex: 1 1 auto;
+    text-align: center;
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text-primary);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.topbar-action {
+    width: 40px;
+    height: 40px;
+    display: grid;
+    place-items: center;
+    border-radius: var(--radius-sm);
+    background: var(--accent);
+    color: #fff;
+    font-size: 18px;
+    font-weight: 600;
+    flex-shrink: 0;
+    transition: background var(--dur-fast) var(--ease);
+}
+
+.topbar-action:hover { background: var(--accent-hover); }
+
+/* ── Desktop header (visible >= 768px) ──────────────────── */
+.desktop-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 2rem;
+    gap: 16px;
+    padding: 24px 32px;
+    flex-shrink: 0;
 }
 
 .header-title h2 {
     margin: 0;
-    font-size: 1.5rem;
-    color: #fff;
+    font-size: 22px;
     font-weight: 600;
+    color: var(--text-primary);
+    letter-spacing: -0.01em;
 }
 
-.actions {
-    display: flex;
-    gap: 1rem;
-}
+.actions { display: flex; gap: 10px; }
 
 .btn-primary {
-    background: #f8fafc;
-    color: #171717;
+    background: var(--accent);
+    color: #fff;
     border: none;
-    padding: 0.6rem 1.2rem;
-    border-radius: 8px;
+    padding: 10px 18px;
+    border-radius: var(--radius-md);
     cursor: pointer;
     font-weight: 600;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-    transition: all 0.2s;
+    font-size: 14px;
+    min-height: var(--tap-target);
+    transition: background var(--dur-fast) var(--ease),
+                transform var(--dur-fast) var(--ease);
 }
 
-.btn-primary:hover {
-    background: #fff;
-    transform: translateY(-1px);
-    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.3);
-}
+.btn-primary:hover { background: var(--accent-hover); }
+.btn-primary:active { transform: translateY(1px); }
 
 .btn-secondary {
-    background: #383838;
-    color: #cbd5e1;
-    border: 1px solid #525252;
-    padding: 0.6rem 1.2rem;
-    border-radius: 8px;
+    background: transparent;
+    color: var(--text-primary);
+    border: 1px solid var(--border-default);
+    padding: 10px 16px;
+    border-radius: var(--radius-md);
     cursor: pointer;
-    transition: all 0.2s;
+    font-size: 14px;
+    min-height: var(--tap-target);
+    transition: background var(--dur-fast) var(--ease),
+                border-color var(--dur-fast) var(--ease);
 }
 
 .btn-secondary:hover {
-    border-color: #fff;
-    color: #fff;
+    background: var(--bg-surface-3);
+    border-color: var(--border-strong);
 }
 
+/* ── Servers grid ───────────────────────────────────────── */
 .servers-section {
-    flex-grow: 1;
+    flex: 1 1 auto;
+    padding: 0 32px 32px;
 }
 
 .servers-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-    gap: 2rem;
+    gap: 18px;
 }
 
 .server-card {
-    background: rgba(31, 31, 31, 0.7);
-    backdrop-filter: blur(10px);
-    border-radius: 12px;
-    padding: 1.5rem;
+    background: var(--bg-surface);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-lg);
+    padding: 18px;
     cursor: pointer;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    border: 1px solid #525252;
+    transition: transform var(--dur-base) var(--ease),
+                border-color var(--dur-base) var(--ease),
+                box-shadow var(--dur-base) var(--ease);
     display: flex;
     flex-direction: column;
+    gap: 14px;
     position: relative;
-    overflow: hidden;
-    margin-bottom: 2rem;
-}
-
-.server-card::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 4px;
-    background: #737373;
-    opacity: 0;
-    transition: opacity 0.3s;
 }
 
 .server-card:hover {
-    transform: translateY(-4px);
-    box-shadow: 0 12px 24px rgba(0, 0, 0, 0.3);
-    border-color: #a3a3a3;
-}
-
-.server-card:hover::before {
-    opacity: 1;
+    transform: translateY(-2px);
+    border-color: var(--border-strong);
+    box-shadow: var(--shadow-md);
 }
 
 .card-header {
     display: flex;
     justify-content: space-between;
     align-items: flex-start;
-    margin-bottom: 1rem;
+    gap: 8px;
 }
 
 .card-header h3 {
     margin: 0;
-    font-size: 1.2rem;
-    color: #fff;
+    font-size: 16px;
     font-weight: 600;
+    color: var(--text-primary);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    word-break: break-word;
 }
 
-.card-details {
-    margin-bottom: 1.5rem;
-}
-
-.card-details p {
-    margin: 0.4rem 0;
-    color: #9ca3af;
-    font-family: 'Menlo', monospace;
-    font-size: 0.85rem;
+.card-actions {
     display: flex;
-    align-items: center;
-    gap: 0.5rem;
+    gap: 2px;
+    flex-shrink: 0;
 }
 
 .card-body {
-    margin-bottom: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
 }
 
 .card-body p {
-    margin: 0.4rem 0;
-    color: #9ca3af;
-    font-family: 'Menlo', monospace;
-    font-size: 0.85rem;
     display: flex;
     align-items: center;
-    gap: 0.5rem;
+    gap: 8px;
+    margin: 0;
+    color: var(--text-secondary);
+    font-size: 13px;
+}
+
+.card-label {
+    color: var(--text-tertiary);
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    flex-shrink: 0;
+    min-width: 40px;
+}
+
+.card-value {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    color: var(--text-primary);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    min-width: 0;
 }
 
 .card-footer {
     display: flex;
-    gap: 0.75rem;
+    gap: 8px;
     margin-top: auto;
 }
 
 .btn-connect {
-    flex-grow: 1;
-    background: #fff;
-    color: #171717;
+    flex: 1 1 auto;
+    min-height: var(--tap-target);
+    background: var(--accent);
+    color: #fff;
     border: none;
-    padding: 0.6rem;
-    border-radius: 6px;
-    cursor: pointer;
+    padding: 10px;
+    border-radius: var(--radius-md);
     font-weight: 600;
-    transition: background 0.2s;
+    font-size: 14px;
+    transition: background var(--dur-fast) var(--ease),
+                transform var(--dur-fast) var(--ease);
 }
 
-.btn-connect:hover {
-    background: #e5e5e5;
-}
+.btn-connect:hover { background: var(--accent-hover); }
+.btn-connect:active { transform: translateY(1px); }
 
 .btn-files {
-    background: rgba(255, 255, 255, 0.05);
-    color: #cbd5e1;
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    padding: 0.6rem 0.8rem;
-    border-radius: 6px;
+    min-width: var(--tap-target);
+    min-height: var(--tap-target);
+    background: var(--bg-surface-2);
+    color: var(--text-secondary);
+    border: 1px solid var(--border-default);
+    padding: 10px 12px;
+    border-radius: var(--radius-md);
     cursor: pointer;
-    transition: all 0.2s;
+    transition: background var(--dur-fast) var(--ease),
+                border-color var(--dur-fast) var(--ease),
+                color var(--dur-fast) var(--ease);
+    font-size: 16px;
 }
 
 .btn-files:hover {
-    background: rgba(255, 255, 255, 0.1);
-    color: #fff;
-    border-color: rgba(255, 255, 255, 0.2);
+    background: var(--bg-surface-3);
+    color: var(--text-primary);
+    border-color: var(--border-strong);
 }
 
 .icon-btn {
+    width: 32px;
+    height: 32px;
+    display: grid;
+    place-items: center;
     background: transparent;
-    border: none;
-    color: #64748b;
-    cursor: pointer;
-    font-size: 1.1rem;
-    padding: 4px;
-    transition: all 0.2s;
-    border-radius: 4px;
+    color: var(--text-secondary);
+    border-radius: var(--radius-sm);
+    font-size: 14px;
+    transition: background var(--dur-fast) var(--ease),
+                color var(--dur-fast) var(--ease);
 }
 
 .icon-btn:hover {
-    color: #fff;
-    background: rgba(255, 255, 255, 0.1);
+    background: var(--bg-surface-3);
+    color: var(--text-primary);
 }
 
 .icon-btn.delete:hover {
-    color: #ef4444;
-    background: rgba(239, 68, 68, 0.1);
+    background: var(--danger-soft);
+    color: var(--danger-hover);
 }
 
 .empty-state {
     grid-column: 1 / -1;
     text-align: center;
-    color: #9ca3af;
-    padding: 4rem;
-    background: rgba(30, 41, 59, 0.3);
-    border-radius: 12px;
-    border: 1px dashed #525252;
+    color: var(--text-secondary);
+    padding: 48px 24px;
+    background: var(--bg-surface);
+    border: 1px dashed var(--border-default);
+    border-radius: var(--radius-lg);
 }
 
-/* Panels Styles */
+.empty-state p { margin: 0 0 14px; }
+
+/* ── Panels (workspace) ─────────────────────────────────── */
 .panels-grid {
     display: flex;
     flex-direction: column;
     height: 100%;
+    min-height: 0;
 }
 
 .servers-mini-bar {
     display: flex;
     align-items: center;
-    gap: 1rem;
-    padding: 0.5rem;
-    background: #2d2d2d;
-    border-bottom: 1px solid #444;
+    gap: 8px;
+    padding: 8px 12px;
+    background: var(--bg-surface);
+    border-bottom: 1px solid var(--border-subtle);
     overflow-x: auto;
     flex-shrink: 0;
+    scrollbar-width: none;
 }
 
+.servers-mini-bar::-webkit-scrollbar { display: none; }
+
 .back-to-servers {
-    font-size: 14px;
-    padding: 0.5rem 1rem;
+    font-size: 13px;
+    padding: 6px 12px;
+    min-height: 32px;
+    flex-shrink: 0;
 }
 
 .mini-server-list {
     display: flex;
-    gap: 1rem;
+    gap: 6px;
+    flex-shrink: 0;
 }
 
 .mini-server-item {
     display: flex;
     align-items: center;
-    gap: 0.5rem;
-    background: #383838;
-    padding: 0.25rem 0.5rem;
-    border-radius: 4px;
-    border: 1px solid #525252;
+    gap: 4px;
+    background: var(--bg-surface-2);
+    padding: 4px 8px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border-subtle);
+    flex-shrink: 0;
 }
 
 .mini-server-item span {
-    font-size: 0.8rem;
-    color: #ccc;
+    font-size: 12px;
+    color: var(--text-secondary);
+    white-space: nowrap;
 }
 
 .mini-server-item button {
+    width: 28px;
+    height: 28px;
+    display: grid;
+    place-items: center;
     background: transparent;
-    border: none;
-    cursor: pointer;
-    font-size: 1rem;
-    padding: 2px;
+    border-radius: var(--radius-sm);
+    font-size: 14px;
+    transition: background var(--dur-fast) var(--ease);
 }
 
-.mini-server-item button:hover {
-    transform: scale(1.1);
-}
+.mini-server-item button:hover { background: var(--bg-surface-3); }
 
 .panels-container {
     display: flex;
-    flex-grow: 1;
+    flex: 1 1 auto;
+    min-height: 0;
     overflow: hidden;
 }
 
 .panel-wrapper {
-    flex: 1;
+    flex: 1 1 0;
     min-width: 0;
-    border-right: 1px solid #444;
+    min-height: 0;
+    border-right: 1px solid var(--border-subtle);
 }
 
-.panel-wrapper:last-child {
-    border-right: none;
+.panel-wrapper:last-child { border-right: none; }
+
+.panel-resizer {
+    width: 6px;
+    flex-shrink: 0;
+    cursor: col-resize;
+    background: transparent;
+    position: relative;
+    transition: background var(--dur-fast) var(--ease);
 }
 
-/* Editor Modal */
+.panel-resizer:hover,
+.panel-resizer:active {
+    background: var(--accent-soft);
+}
+
+/* ── Modals (editor + image viewer) ─────────────────────── */
 .modal-overlay {
     position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: rgba(0, 0, 0, 0.7);
+    inset: 0;
+    background: var(--bg-overlay-strong);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
     display: flex;
     justify-content: center;
     align-items: center;
-    z-index: 1000;
+    z-index: var(--z-modal);
+    padding: 24px;
+    animation: fade-in var(--dur-base) var(--ease);
 }
 
 .modal-content {
-    background: #2d2d2d;
-    padding: 2rem;
-    border-radius: 8px;
-    width: 400px;
-    max-width: 90%;
-    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
+    background: var(--bg-surface);
+    border: 1px solid var(--border-subtle);
+    padding: 20px;
+    border-radius: var(--radius-xl);
+    width: 100%;
+    box-shadow: var(--shadow-lg);
+    max-height: calc(100dvh - 48px);
+    display: flex;
+    flex-direction: column;
+    animation: pop-in var(--dur-base) var(--ease);
+}
+
+@keyframes fade-in { from { opacity: 0; } }
+@keyframes pop-in {
+    from { opacity: 0; transform: translateY(8px) scale(0.98); }
+}
+
+.modal-content h2 {
+    margin: 0;
+    font-size: 16px;
+    color: var(--text-primary);
+}
+
+.filename {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    color: var(--text-secondary);
+    font-weight: 500;
+    word-break: break-all;
 }
 
 .editor-modal {
-    width: 80%;
-    height: 80%;
+    width: 100%;
+    max-width: 960px;
+    height: 80dvh;
+}
+
+.editor-head {
     display: flex;
-    flex-direction: column;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 14px;
 }
 
 .editor-textarea {
-    flex-grow: 1;
-    background: #1e1e1e;
-    color: #fff;
-    border: 1px solid #444;
-    padding: 1rem;
-    font-family: monospace;
+    flex: 1 1 auto;
+    min-height: 0;
+    background: var(--bg-app);
+    color: var(--text-primary);
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-md);
+    padding: 12px 14px;
+    font-family: var(--font-mono);
+    font-size: 13px;
+    line-height: 1.5;
     resize: none;
-    margin-bottom: 1rem;
+    margin-bottom: 14px;
+    transition: border-color var(--dur-fast) var(--ease),
+                box-shadow var(--dur-fast) var(--ease);
+}
+
+.editor-textarea:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-ring);
 }
 
 .modal-actions {
     display: flex;
     justify-content: flex-end;
-    gap: 1rem;
+    gap: 10px;
 }
 
-/* Image Viewer Modal */
 .image-modal {
-    width: 90%;
-    height: 90%;
-    display: flex;
-    flex-direction: column;
+    width: 100%;
+    max-width: 1080px;
+    max-height: calc(100dvh - 48px);
 }
 
 .image-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    gap: 1rem;
-    margin-bottom: 1rem;
+    gap: 12px;
+    margin-bottom: 12px;
 }
 
 .icon-btn-close {
-    background: transparent;
-    border: none;
-    color: #ccc;
-    cursor: pointer;
-    font-size: 1.5rem;
+    width: 36px;
+    height: 36px;
+    display: grid;
+    place-items: center;
+    border-radius: var(--radius-sm);
+    color: var(--text-secondary);
+    font-size: 22px;
     line-height: 1;
+    flex-shrink: 0;
+    transition: background var(--dur-fast) var(--ease),
+                color var(--dur-fast) var(--ease);
 }
 
 .icon-btn-close:hover {
-    color: #fff;
+    background: var(--bg-surface-3);
+    color: var(--text-primary);
 }
 
 .image-container {
-    flex: 1;
+    flex: 1 1 auto;
     overflow: auto;
     display: flex;
     justify-content: center;
     align-items: flex-start;
+    background: var(--bg-app);
+    border-radius: var(--radius-md);
+    padding: 12px;
 }
 
 .image-container img {
@@ -1275,142 +1538,101 @@ header {
     height: auto;
 }
 
-/* Responsive Styles */
-@media (max-width: 1024px) {
-    .dashboard-content {
-        padding: 1.5rem 2rem;
+/* ============================================================
+ * Responsive
+ * ============================================================ */
+
+/* ── < 1024px: drawer mode ──────────────────────────────── */
+@media (max-width: 1023px) {
+    .sidebar {
+        position: fixed;
+        top: 0;
+        left: 0;
+        bottom: 0;
+        width: min(320px, 86vw);
+        padding-top: max(16px, env(safe-area-inset-top));
+        padding-bottom: max(16px, env(safe-area-inset-bottom));
+        padding-left: max(16px, env(safe-area-inset-left));
+        transform: translateX(-100%);
+        box-shadow: var(--shadow-lg);
     }
 
+    .sidebar.is-open { transform: translateX(0); }
+
+    .sidebar-close {
+        display: grid;
+    }
+
+    .sidebar-backdrop {
+        display: block;
+    }
+
+    .sidebar-backdrop.is-visible {
+        opacity: 1;
+        pointer-events: auto;
+    }
+
+    .topbar { display: flex; }
+    .desktop-header { display: none; }
+
+    .servers-section { padding: 16px; }
     .servers-grid {
         grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-        gap: 1.5rem;
+        gap: 12px;
     }
 }
 
-@media (max-width: 768px) {
-    .dashboard-layout {
-        flex-direction: column;
-    }
-
-    .sidebar {
-        width: 100%;
-        max-width: 100%;
-        height: auto;
-        max-height: 50vh;
-        border-right: none;
-        border-bottom: 1px solid #444;
-        padding: 1rem;
-        flex-shrink: 0;
-    }
-
-    .dashboard-content {
-        padding: 1rem;
-        overflow-y: auto;
-    }
-
-    .servers-grid {
-        grid-template-columns: 1fr;
-        gap: 1rem;
-    }
-
-    header {
-        flex-direction: column;
-        gap: 1rem;
-        align-items: stretch;
-    }
-
-    .actions {
-        width: 100%;
-        flex-direction: column;
-    }
-
-    .btn-primary,
-    .btn-secondary {
-        width: 100%;
-    }
+/* ── < 768px: phones ────────────────────────────────────── */
+@media (max-width: 767px) {
+    .servers-grid { grid-template-columns: 1fr; gap: 12px; }
+    .server-card { padding: 16px; }
+    .card-header h3 { font-size: 15px; }
+    .card-body p { font-size: 13px; }
 
     .servers-mini-bar {
-        flex-direction: column;
-        align-items: stretch;
-        gap: 0.5rem;
+        padding: 6px 10px;
+        padding-left: max(10px, env(safe-area-inset-left));
+        padding-right: max(10px, env(safe-area-inset-right));
     }
 
-    .mini-server-list {
-        flex-direction: column;
-        gap: 0.5rem;
-    }
-
-    .mini-server-item {
-        justify-content: space-between;
-    }
+    .mini-server-item span { max-width: 120px; overflow: hidden; text-overflow: ellipsis; }
 
     .panels-container {
         flex-direction: column;
+        overflow-y: auto;
     }
 
     .panel-wrapper {
+        flex: 0 0 70dvh;
+        min-height: 70dvh;
         border-right: none;
-        border-bottom: 1px solid #444;
-        min-height: 300px;
+        border-bottom: 1px solid var(--border-subtle);
     }
 
-    .panel-wrapper:last-child {
-        border-bottom: none;
+    .panel-wrapper:last-child { border-bottom: none; }
+
+    .panel-resizer { display: none; }
+
+    .modal-overlay { padding: 0; align-items: stretch; }
+
+    .modal-content {
+        border-radius: 0;
+        max-height: 100dvh;
+        padding: 16px;
+        padding-top: max(16px, env(safe-area-inset-top));
+        padding-bottom: max(16px, env(safe-area-inset-bottom));
     }
 
-    .card-footer {
-        flex-direction: column;
-    }
-
-    .user-info {
-        padding: 0.75rem;
-    }
-
-    .folder-list {
-        max-height: 200px;
-    }
+    .editor-modal { height: 100dvh; }
 }
 
-@media (max-width: 480px) {
-    .dashboard-content {
-        padding: 0.75rem;
-    }
-
-    .header-title h2 {
-        font-size: 1.25rem;
-    }
-
-    .server-card {
-        padding: 1rem;
-    }
-
-    .card-header h3 {
-        font-size: 1rem;
-    }
-
-    .card-body p {
-        font-size: 0.8rem;
-    }
-
-    .user-name {
-        font-size: 0.85rem;
-    }
-
-    .user-email {
-        font-size: 0.75rem;
-    }
-
-    .folder-item {
-        padding: 0.6rem 0.75rem;
-        font-size: 0.9rem;
-    }
-
-    .panel-header {
-        padding: 0.4rem 0.75rem;
-    }
-
-    .panel-title {
-        font-size: 0.85rem;
-    }
+/* ── < 480px: small phones ──────────────────────────────── */
+@media (max-width: 479px) {
+    .grace-banner { font-size: 12px; padding: 6px 12px; }
+    .empty-state { padding: 32px 16px; }
+    .card-footer { flex-direction: row; }
+    .modal-actions { flex-direction: column-reverse; }
+    .modal-actions .btn-primary,
+    .modal-actions .btn-secondary { width: 100%; }
 }
 </style>

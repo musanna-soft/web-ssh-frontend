@@ -1,12 +1,8 @@
 <template>
-  <router-view></router-view>
+    <router-view></router-view>
 </template>
 
 <style>
-body {
-  margin: 0;
-  font-family: 'Inter', sans-serif;
-  background-color: #1e1e1e;
-  color: #ffffff;
-}
+/* Global tokens live in style.css. Keep this block intentionally
+   minimal so component-scoped styles inherit cleanly. */
 </style>

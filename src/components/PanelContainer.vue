@@ -44,9 +44,9 @@ const handleDropFile = (data) => emit('drop-file', { ...data, targetPanelId: pro
     display: flex;
     flex-direction: column;
     height: 100%;
-    background: #1e1e1e;
-    border: 1px solid #444;
-    border-radius: 8px;
+    background: var(--bg-app);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-md);
     overflow: hidden;
 }
 
@@ -54,36 +54,63 @@ const handleDropFile = (data) => emit('drop-file', { ...data, targetPanelId: pro
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 0.5rem 1rem;
-    background: #2d2d2d;
-    border-bottom: 1px solid #333;
+    gap: 8px;
+    padding: 8px 12px;
+    background: var(--bg-surface);
+    border-bottom: 1px solid var(--border-subtle);
+    flex-shrink: 0;
+    min-height: 40px;
 }
 
 .panel-title {
     display: flex;
     align-items: center;
-    gap: 0.5rem;
-    color: #ccc;
-    font-size: 0.9rem;
+    gap: 8px;
+    color: var(--text-primary);
+    font-size: 13px;
     font-weight: 600;
+    min-width: 0;
+}
+
+.panel-type-icon { flex-shrink: 0; }
+
+.server-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.panel-controls {
+    flex-shrink: 0;
 }
 
 .close-btn {
-    background: transparent;
-    border: none;
-    color: #999;
-    cursor: pointer;
-    font-size: 1.2rem;
+    width: 32px;
+    height: 32px;
+    display: grid;
+    place-items: center;
+    border-radius: var(--radius-sm);
+    color: var(--text-secondary);
+    font-size: 20px;
     line-height: 1;
+    transition: background var(--dur-fast) var(--ease),
+                color var(--dur-fast) var(--ease);
 }
 
 .close-btn:hover {
-    color: #ff4444;
+    background: var(--danger-soft);
+    color: var(--danger-hover);
 }
 
 .panel-content {
     flex-grow: 1;
     overflow: hidden;
     position: relative;
+    min-height: 0;
+}
+
+@media (max-width: 768px) {
+    .panel-container { border-radius: 0; border-left: none; border-right: none; }
+    .close-btn { width: 36px; height: 36px; }
 }
 </style>

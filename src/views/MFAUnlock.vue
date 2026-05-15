@@ -207,75 +207,113 @@ function formatError(e) {
 
 <style scoped>
 .mfa-page {
-    min-height: 100vh;
-    background: #1e1e1e;
-    color: #e7e9ea;
+    min-height: 100dvh;
+    background: var(--bg-app);
+    color: var(--text-primary);
     display: flex;
     justify-content: center;
     align-items: flex-start;
-    padding: 60px 20px;
+    padding: 48px 20px;
+    padding-top: max(48px, env(safe-area-inset-top));
+    padding-bottom: max(48px, env(safe-area-inset-bottom));
+    overflow-y: auto;
 }
+
 .card {
-    background: #2d2d2d;
-    border-radius: 12px;
+    background: var(--bg-surface);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-xl);
     padding: 28px;
     width: 100%;
     max-width: 420px;
-    box-shadow: 0 4px 18px rgba(0, 0, 0, 0.35);
+    box-shadow: var(--shadow-lg);
 }
+
 h1 {
-    margin: 0 0 4px;
-    font-size: 1.5rem;
+    margin: 0 0 6px;
+    font-size: 22px;
+    letter-spacing: -0.01em;
 }
+
 .sub {
-    color: #aaa;
+    color: var(--text-secondary);
     margin: 0 0 22px;
-    font-size: 0.95rem;
+    font-size: 14px;
 }
+
 .hint {
-    color: #aaa;
-    font-size: 0.9rem;
-    margin: 4px 0 12px;
+    color: var(--text-secondary);
+    font-size: 13px;
+    margin: 4px 0 14px;
+    line-height: 1.5;
 }
+
 input {
     width: 100%;
-    box-sizing: border-box;
-    background: #1e1e1e;
-    color: inherit;
-    border: 1px solid #3a3a3a;
-    border-radius: 10px;
-    font-size: 1.2rem;
-    letter-spacing: 3px;
+    background: var(--bg-app);
+    color: var(--text-primary);
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-md);
+    font-size: 20px;
+    letter-spacing: 6px;
     text-align: center;
     padding: 14px 16px;
     margin: 6px 0 10px;
-    font-family: ui-monospace, monospace;
+    font-family: var(--font-mono);
+    transition: border-color var(--dur-fast) var(--ease),
+                box-shadow var(--dur-fast) var(--ease);
 }
+
+input:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-ring);
+}
+
 button {
     width: 100%;
-    background: #2ea6ff;
+    min-height: var(--tap-target);
+    background: var(--accent);
     color: #fff;
     border: none;
-    border-radius: 10px;
-    padding: 12px 14px;
-    font-size: 0.95rem;
+    border-radius: var(--radius-md);
+    padding: 12px 16px;
+    font-size: 15px;
     font-weight: 600;
-    cursor: pointer;
-    margin-top: 6px;
+    transition: background var(--dur-fast) var(--ease),
+                transform var(--dur-fast) var(--ease);
+    margin-top: 8px;
 }
+
+button:hover { background: var(--accent-hover); }
+button:active { transform: translateY(1px); }
+
 button.secondary {
     background: transparent;
-    color: #2ea6ff;
-    margin-top: 4px;
+    color: var(--accent);
+    border: 1px solid var(--border-default);
 }
+
+button.secondary:hover {
+    background: var(--accent-soft);
+    border-color: var(--accent);
+}
+
 button:disabled {
     opacity: 0.5;
     cursor: not-allowed;
+    transform: none;
 }
+
 .error {
-    color: #ef4444;
-    font-size: 0.85rem;
-    margin: 6px 0 0;
+    color: var(--danger);
+    font-size: 13px;
+    margin: 8px 0 0;
     min-height: 1em;
+}
+
+@media (max-width: 480px) {
+    .mfa-page { padding: 24px 16px; padding-top: max(24px, env(safe-area-inset-top)); }
+    .card { padding: 20px; border-radius: var(--radius-lg); }
+    h1 { font-size: 20px; }
 }
 </style>
