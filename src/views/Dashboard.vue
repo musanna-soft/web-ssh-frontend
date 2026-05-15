@@ -1,9 +1,10 @@
 <template>
-    <div class="dashboard-layout">
+    <div class="dashboard-wrapper">
         <div v-if="showGraceBanner" class="grace-banner">
             🔔 MFA <b>{{ formattedGrace }}</b> dan majburiy.
             <router-link to="/mfa/setup">Sozlash</router-link>
         </div>
+        <div class="dashboard-layout">
         <aside class="sidebar" v-if="showSidebar">
             <div class="user-info" v-if="user">
                 <img :src="user.avatar_url" alt="Avatar" class="avatar" />
@@ -141,6 +142,7 @@
 
     <TransferChoiceModal :isOpen="showTransferModal" :fileName="transferData?.fileName || ''"
         :destPath="transferData?.destPath || ''" @action="handleTransferAction" />
+    </div>
 </template>
 
 <script setup>
@@ -666,17 +668,28 @@ onMounted(() => {
 </script>
 
 <style scoped>
+/* Column wrapper so the banner consumes only its content height and the
+   sidebar+main row claims the rest. The previous flex-wrap on
+   .dashboard-layout caused align-content: stretch to grow the banner
+   row to nearly half the viewport. */
+.dashboard-wrapper {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    background: #383838;
+}
+
 .dashboard-layout {
     display: flex;
-    flex-wrap: wrap;
-    height: 100vh;
+    flex: 1 1 auto;
+    min-height: 0;
     background: #383838;
     color: #e2e8f0;
     font-family: 'Inter', sans-serif;
 }
 
 .grace-banner {
-    flex-basis: 100%;
+    flex: 0 0 auto;
     background: #422006;
     color: #fde68a;
     padding: 4px 14px;
