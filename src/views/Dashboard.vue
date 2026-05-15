@@ -1,9 +1,8 @@
 <template>
     <div class="dashboard-layout">
         <div v-if="showGraceBanner" class="grace-banner">
-            🔔 MFA majburiy bo'lib bormoqda. Hisobingiz <b>{{ formattedGrace }}</b> sanasigacha
-            qulflanmaydi.
-            <router-link to="/mfa/setup">Hozir sozlash</router-link>
+            🔔 MFA <b>{{ formattedGrace }}</b> dan majburiy.
+            <router-link to="/mfa/setup">Sozlash</router-link>
         </div>
         <aside class="sidebar" v-if="showSidebar">
             <div class="user-info" v-if="user">
@@ -680,14 +679,15 @@ onMounted(() => {
     flex-basis: 100%;
     background: #422006;
     color: #fde68a;
-    padding: 10px 16px;
-    font-size: 0.9rem;
+    padding: 4px 14px;
+    font-size: 0.78rem;
+    line-height: 1.3;
     border-bottom: 1px solid #78350f;
 }
 
 .grace-banner a {
     color: #fde68a;
-    margin-left: 8px;
+    margin-left: 6px;
     text-decoration: underline;
 }
 
