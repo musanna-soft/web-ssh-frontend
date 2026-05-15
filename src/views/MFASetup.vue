@@ -210,7 +210,7 @@ function formatError(e) {
 
 <style scoped>
 .mfa-page {
-    min-height: 100dvh;
+    height: 100dvh;
     background: var(--bg-app);
     color: var(--text-primary);
     display: flex;
