@@ -60,9 +60,11 @@
     --shadow-lg: 0 22px 48px -8px rgba(0, 0, 0, 0.55);
 
     /* ── Z-index ───────────────────────────────────────────── */
+    /* Backdrop sits below the drawer so the drawer stays interactive
+       while the rest of the screen is dimmed underneath. */
     --z-sidebar:   40;
+    --z-overlay:   45;
     --z-drawer:    50;
-    --z-overlay:   60;
     --z-modal:     70;
     --z-toast:     90;
 
