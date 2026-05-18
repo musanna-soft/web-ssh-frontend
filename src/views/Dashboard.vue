@@ -68,6 +68,18 @@
                 </button>
 
                 <div class="sidebar-footer">
+                    <a
+                        href="https://t.me/remofybot"
+                        target="_blank"
+                        rel="noopener"
+                        class="btn-secondary tg-btn"
+                        title="Telegram botda davom ettirish"
+                    >
+                        <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
+                            <path fill="currentColor" d="M9.78 18.65l.28-4.23 7.68-6.92c.34-.31-.07-.46-.52-.19L7.74 13.3 3.64 12c-.88-.25-.89-.86.2-1.3l15.97-6.16c.73-.33 1.43.18 1.15 1.3l-2.72 12.81c-.19.91-.74 1.13-1.5.71L12.6 16.3l-1.99 1.93c-.23.23-.42.42-.83.42z"/>
+                        </svg>
+                        <span>Telegram bot</span>
+                    </a>
                     <router-link to="/mfa/settings" class="btn-secondary mfa-btn">
                         🔐 MFA
                     </router-link>
@@ -968,7 +980,8 @@ onBeforeUnmount(() => {
 }
 
 .mfa-btn,
-.logout-btn {
+.logout-btn,
+.tg-btn {
     display: flex;
     align-items: center;
     justify-content: center;
@@ -987,9 +1000,14 @@ onBeforeUnmount(() => {
 }
 
 .mfa-btn:hover,
-.logout-btn:hover {
+.logout-btn:hover,
+.tg-btn:hover {
     background: var(--bg-surface-3);
     border-color: var(--border-strong);
+}
+
+.tg-btn {
+    color: #229ED9;
 }
 
 /* ── Sidebar backdrop (mobile only) ─────────────────────── */
