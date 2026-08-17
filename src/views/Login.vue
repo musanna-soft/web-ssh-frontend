@@ -5,7 +5,7 @@
             <div class="inapp-body">
                 <div class="inapp-title">{{ inApp.appName }} ichki brauzeri aniqlandi</div>
                 <p class="inapp-text">
-                    Google bilan kirish bu yerda ishlamasligi mumkin.
+                    Kirish bu yerda ishlamasligi mumkin.
                     Sahifani <b>{{ inApp.recommendedBrowser }}</b>'da oching:
                     <span class="inapp-hint">{{ inApp.howTo }}</span>
                 </p>
@@ -23,9 +23,9 @@
                 <h1>Remofy</h1>
             </div>
             <p class="tagline">Secure remote server management.</p>
-            <button @click="loginWithGoogle" class="google-btn" type="button">
-                <img src="https://www.svgrepo.com/show/475656/google-color.svg" alt="" aria-hidden="true" />
-                <span>Sign in with Google</span>
+            <button @click="loginWithMusanna" class="google-btn" type="button">
+                <span class="musanna-mark" aria-hidden="true">M</span>
+                <span>Musanna hisobi bilan kirish</span>
             </button>
             <p class="fine-print">
                 Hisobingiz orqali kirsangiz, xizmat shartlariga rozilik bildirgan bo'lasiz.
@@ -49,13 +49,14 @@
 <script setup>
 import { ref } from 'vue';
 
-const loginWithGoogle = () => {
-    window.location.href = `${import.meta.env.VITE_API_BASE_URL}/auth/google/login`;
+// Kirish musanna-platforma orqali. Backend OIDC oqimini o'zi boshlaydi va
+// tugagach bizga o'z tokenini qaytaradi — brauzerda hech qanday client sir yo'q.
+const loginWithMusanna = () => {
+    window.location.href = `${import.meta.env.VITE_API_BASE_URL}/auth/musanna/login`;
 };
 
-// In-app brauzer aniqlash: shu webview'larda Google OAuth ishlamasligi mumkin
-// (Google "disallowed_useragent" qaytaradi). Foydalanuvchini tashqi brauzerga
-// yo'naltirish uchun banner ko'rsatamiz.
+// In-app brauzer aniqlash: bunday webview'larda tashqi kirish oqimi ko'pincha
+// bloklanadi, shuning uchun foydalanuvchini tashqi brauzerga yo'naltiramiz.
 const detectInApp = () => {
     if (typeof navigator === 'undefined') return { detected: false };
     const ua = (navigator.userAgent || '') + ' ' + (navigator.vendor || '');
@@ -214,6 +215,23 @@ h1 {
 .google-btn img {
     width: 20px;
     height: 20px;
+}
+
+/* Musanna belgisi — tashqi rasm o'rniga matn: login sahifasi tashqi hostga
+   bog'lanmasligi kerak (ilgari bu yerda svgrepo.com dan Google logotipi
+   yuklanardi va u internetsiz muhitda bo'sh joy bo'lib qolardi). */
+.musanna-mark {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    border-radius: 6px;
+    background: var(--accent, #2563eb);
+    color: #fff;
+    font-weight: 700;
+    font-size: 12px;
+    line-height: 1;
 }
 
 .fine-print {

@@ -474,6 +474,17 @@ const saveServer = async (serverData) => {
         closeModal();
         fetchServers();
     } catch (err) {
+        // 402 — tarif chegarasi. Bu xato emas, holat: odam qo'sha oladi, faqat
+        // hozirgi tarifida emas. Xom xato matnini ko'rsatish uni "buzildi" deb
+        // o'ylashga majbur qilardi, holbuki yo'l ochiq — tarifni ko'tarish.
+        if (err.response?.status === 402) {
+            const limit = err.response?.data?.limit;
+            alert(
+                `Tarifingizda ${limit} ta server mumkin. Ko'proq kerak bo'lsa ` +
+                `console.musanna.uz da tarifni ko'taring.`,
+            );
+            return;
+        }
         alert(err.response?.data || err.message);
     }
 };

@@ -13,6 +13,9 @@ dist-ssr
 *.local
 
 # Environment variables
+# `.env` ham shu yerda: u LOKAL fayl (backend manzili shu mashinada qayerda turgani)
+# va uni commit qilish boshqa dasturchining sozlamasini jimgina ustiga yozardi.
+.env
 .env.development
 .env.production
 
