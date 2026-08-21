@@ -31,16 +31,17 @@
                 Hisobingiz orqali kirsangiz, xizmat shartlariga rozilik bildirgan bo'lasiz.
             </p>
 
-            <div class="divider"><span>yoki</span></div>
-
-            <a href="https://t.me/remofybot" target="_blank" rel="noopener" class="tg-btn">
-                <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
-                    <path fill="#fff" d="M9.78 18.65l.28-4.23 7.68-6.92c.34-.31-.07-.46-.52-.19L7.74 13.3 3.64 12c-.88-.25-.89-.86.2-1.3l15.97-6.16c.73-.33 1.43.18 1.15 1.3l-2.72 12.81c-.19.91-.74 1.13-1.5.71L12.6 16.3l-1.99 1.93c-.23.23-.42.42-.83.42z"/>
-                </svg>
-                <span>Telegram botda davom ettirish — @remofybot</span>
-            </a>
-            <p class="tg-hint">
-                Brauzersiz, to'g'ridan-to'g'ri Telegram orqali serverlaringizga ulanish.
+            <!--
+                Ko'chish haqidagi ogohlantirish. Ilgari bu yerga Google bilan kirilardi va
+                serverlar o'sha hisobga bog'langan; endi kirish musanna orqali. Eski
+                yozuvni topishning YAGONA yo'li — email, shuning uchun odam AYNAN o'sha
+                manzil bilan ro'yxatdan o'tishi kerak. Boshqa email bilan kirsa, u bo'sh
+                ilovaga tushadi va serverlari "yo'qolgandek" ko'rinadi.
+            -->
+            <p class="migration-note">
+                <strong>Ilgari Google bilan kirganmisiz?</strong>
+                Musanna hisobini <strong>o'sha email</strong> bilan oching — serverlaringiz,
+                papkalaringiz va sozlamalaringiz o'z-o'zidan qaytadi.
             </p>
         </div>
     </div>
@@ -258,6 +259,22 @@ h1 {
     flex: 1;
     height: 1px;
     background: var(--border-subtle);
+}
+
+.migration-note {
+    margin-top: 1.25rem;
+    padding: 0.85rem 1rem;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 0.6rem;
+    background: rgba(255, 255, 255, 0.04);
+    font-size: 0.82rem;
+    line-height: 1.5;
+    color: #9aa7b4;
+    text-align: left;
+}
+
+.migration-note strong {
+    color: #e6edf3;
 }
 
 .tg-btn {
