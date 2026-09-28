@@ -21,24 +21,14 @@ api.interceptors.request.use(
     }
 );
 
-// Add a response interceptor to handle 401 + 403 mfa_required.
+// 401 — sessiya tugadi.
+//
+// MFA bu yerda YO'Q va bo'lmasligi kerak: ikki bosqichli tasdiqlash musanna
+// hisobining ishi (`me.musanna.uz`). Remofy'ning o'z MFA ekrani ikkinchi,
+// mustaqil qulf bo'lardi — odam qaysi birini yoqqanini eslay olmasdi va
+// ikkalasini alohida tiklashi kerak bo'lardi.
 api.interceptors.response.use(
-    (response) => {
-        // Surface MFA grace-period info if the server attached it. The
-        // store is imported lazily to avoid loading Pinia before the app
-        // has mounted (api.js is imported very early).
-        const grace = response.headers && response.headers['x-mfa-grace-until'];
-        if (grace) {
-            import('./stores/mfa.js').then(({ useMFAStore }) => {
-                try {
-                    useMFAStore().setGraceUntil(grace);
-                } catch (_) {
-                    // Pinia not ready yet — ignore.
-                }
-            });
-        }
-        return response;
-    },
+    (response) => response,
     (error) => {
         const status = error.response && error.response.status;
 
@@ -48,21 +38,6 @@ api.interceptors.response.use(
                 window.location.href = '/login';
             }
             return Promise.reject(error);
-        }
-
-        if (status === 403) {
-            const body = error.response.data || {};
-            const mfaHeader = error.response.headers
-                ? error.response.headers['x-mfa-required']
-                : null;
-            if (body.error === 'mfa_required' || mfaHeader === '1') {
-                const enrolled = !!body.enrolled;
-                const target = enrolled ? '/mfa/unlock' : '/mfa/setup';
-                // Don't redirect-loop when we're already on the MFA pages.
-                if (!window.location.pathname.startsWith('/mfa/')) {
-                    window.location.href = target;
-                }
-            }
         }
 
         return Promise.reject(error);

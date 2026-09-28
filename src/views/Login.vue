@@ -31,18 +31,6 @@
                 Hisobingiz orqali kirsangiz, xizmat shartlariga rozilik bildirgan bo'lasiz.
             </p>
 
-            <!--
-                Ko'chish haqidagi ogohlantirish. Ilgari bu yerga Google bilan kirilardi va
-                serverlar o'sha hisobga bog'langan; endi kirish musanna orqali. Eski
-                yozuvni topishning YAGONA yo'li — email, shuning uchun odam AYNAN o'sha
-                manzil bilan ro'yxatdan o'tishi kerak. Boshqa email bilan kirsa, u bo'sh
-                ilovaga tushadi va serverlari "yo'qolgandek" ko'rinadi.
-            -->
-            <p class="migration-note">
-                <strong>Ilgari Google bilan kirganmisiz?</strong>
-                Musanna hisobini <strong>o'sha email</strong> bilan oching — serverlaringiz,
-                papkalaringiz va sozlamalaringiz o'z-o'zidan qaytadi.
-            </p>
         </div>
     </div>
 </template>
@@ -259,22 +247,6 @@ h1 {
     flex: 1;
     height: 1px;
     background: var(--border-subtle);
-}
-
-.migration-note {
-    margin-top: 1.25rem;
-    padding: 0.85rem 1rem;
-    border: 1px solid rgba(255, 255, 255, 0.12);
-    border-radius: 0.6rem;
-    background: rgba(255, 255, 255, 0.04);
-    font-size: 0.82rem;
-    line-height: 1.5;
-    color: #9aa7b4;
-    text-align: left;
-}
-
-.migration-note strong {
-    color: #e6edf3;
 }
 
 .tg-btn {

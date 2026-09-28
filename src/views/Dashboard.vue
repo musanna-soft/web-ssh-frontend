@@ -1,10 +1,5 @@
 <template>
     <div class="dashboard-wrapper">
-        <div v-if="showGraceBanner" class="grace-banner">
-            🔔 MFA <b>{{ formattedGrace }}</b> dan majburiy.
-            <router-link to="/mfa/setup">Sozlash</router-link>
-        </div>
-
         <div class="dashboard-layout">
             <!-- Mobile drawer backdrop. Only visible on small screens when the drawer is open. -->
             <div
@@ -80,9 +75,6 @@
                         </svg>
                         <span>Telegram bot</span>
                     </a>
-                    <router-link to="/mfa/settings" class="btn-secondary mfa-btn">
-                        🔐 MFA
-                    </router-link>
                     <button @click="logout" class="btn-secondary logout-btn">
                         <span>Logout</span>
                     </button>
@@ -254,7 +246,6 @@ import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import api from '../api';
 import { useAuthStore } from '../stores/auth';
-import { useMFAStore } from '../stores/mfa';
 import { usePanelStore } from '../stores/panels';
 import ServerModal from '../components/ServerModal.vue';
 import PanelContainer from '../components/PanelContainer.vue';
@@ -262,21 +253,8 @@ import TransferChoiceModal from '../components/TransferChoiceModal.vue';
 
 const router = useRouter();
 const authStore = useAuthStore();
-const mfaStore = useMFAStore();
 const panelStore = usePanelStore();
 const user = computed(() => authStore.user);
-
-const showGraceBanner = computed(
-    () => !!mfaStore.graceUntil && !mfaStore.enrolled
-);
-const formattedGrace = computed(() => {
-    if (!mfaStore.graceUntil) return '';
-    try {
-        return new Date(mfaStore.graceUntil).toISOString().slice(0, 10);
-    } catch (_) {
-        return mfaStore.graceUntil;
-    }
-});
 
 const servers = ref([]);
 const folders = ref([]);
@@ -785,23 +763,6 @@ onBeforeUnmount(() => {
     position: relative;
 }
 
-/* ── Grace banner ───────────────────────────────────────── */
-.grace-banner {
-    flex: 0 0 auto;
-    background: rgba(245, 158, 11, 0.12);
-    color: #fde68a;
-    border-bottom: 1px solid rgba(245, 158, 11, 0.35);
-    padding: 8px 16px;
-    font-size: 13px;
-    line-height: 1.4;
-}
-
-.grace-banner a {
-    color: #fde68a;
-    text-decoration: underline;
-    margin-left: 4px;
-}
-
 /* ── Sidebar (desktop: inline, mobile: drawer) ──────────── */
 .sidebar {
     width: 280px;
@@ -990,7 +951,6 @@ onBeforeUnmount(() => {
     border-top: 1px solid var(--border-subtle);
 }
 
-.mfa-btn,
 .logout-btn,
 .tg-btn {
     display: flex;
@@ -1010,7 +970,6 @@ onBeforeUnmount(() => {
                 border-color var(--dur-fast) var(--ease);
 }
 
-.mfa-btn:hover,
 .logout-btn:hover,
 .tg-btn:hover {
     background: var(--bg-surface-3);
@@ -1657,7 +1616,6 @@ onBeforeUnmount(() => {
 
 /* ── < 480px: small phones ──────────────────────────────── */
 @media (max-width: 479px) {
-    .grace-banner { font-size: 12px; padding: 6px 12px; }
     .empty-state { padding: 32px 16px; }
     .card-footer { flex-direction: row; }
     .modal-actions { flex-direction: column-reverse; }
