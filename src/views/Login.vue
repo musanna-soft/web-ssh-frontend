@@ -249,28 +249,7 @@ h1 {
     background: var(--border-subtle);
 }
 
-.tg-btn {
-    width: 100%;
-    min-height: var(--tap-target);
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 10px;
-    background: #229ED9;
-    color: #fff;
-    border: 1px solid transparent;
-    border-radius: var(--radius-md);
-    padding: 12px 16px;
-    font-size: 15px;
-    font-weight: 600;
-    text-decoration: none;
-    transition: background var(--dur-fast) var(--ease),
-                transform var(--dur-fast) var(--ease),
-                box-shadow var(--dur-fast) var(--ease);
-    box-shadow: var(--shadow-sm);
-}
 
-.tg-btn:hover { background: #1d8ec3; }
 .tg-btn:active { transform: translateY(1px); }
 
 .tg-hint {
