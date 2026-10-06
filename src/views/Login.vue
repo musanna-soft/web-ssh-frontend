@@ -31,6 +31,18 @@
                 Hisobingiz orqali kirsangiz, xizmat shartlariga rozilik bildirgan bo'lasiz.
             </p>
 
+            <!--
+                MFA talabini ESHIKDAN OLDIN aytamiz. Aks holda odam kirish oqimini to'liq
+                o'tib, oxirida rad javobini olardi — va nima qilish kerakligini o'sha yerdan
+                bilib olardi. Qulfning o'zi musanna hisobida, bu yerda emas.
+            -->
+            <p class="mfa-note">
+                Remofy serverlaringizga SSH ochadi, shuning uchun u
+                <strong>ikki bosqichli tasdiqlash</strong> bilan ishlaydi. Uni musanna
+                hisobingizda yoqing:
+                <a href="https://me.musanna.uz/mfa" target="_blank" rel="noopener">me.musanna.uz</a>
+            </p>
+
         </div>
     </div>
 </template>
@@ -318,4 +330,19 @@ h1 {
     .tagline { font-size: 14px; margin-bottom: 20px; }
     .google-btn { font-size: 16px; padding: 14px 16px; }
 }
+
+.mfa-note {
+    margin-top: 1.1rem;
+    padding: 0.8rem 1rem;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 0.6rem;
+    background: rgba(255, 255, 255, 0.04);
+    font-size: 0.8rem;
+    line-height: 1.5;
+    color: #9aa7b4;
+    text-align: left;
+}
+
+.mfa-note strong { color: #e6edf3; }
+.mfa-note a { color: #7aa2f7; }
 </style>
